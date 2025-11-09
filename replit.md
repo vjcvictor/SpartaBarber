@@ -151,3 +151,41 @@ Services in `server/services/notifications.ts`:
 - esbuild for backend bundling
 - Service worker (`public/service-worker.js`) for PWA capabilities and push notifications
 - Environment detection for development vs production features
+
+## Recent Changes
+
+### November 2025 - Critical Bug Fixes
+
+**Booking Flow & Admin Panel Fixes:**
+
+1. **BookingFlow Step 4 Rendering** (client/src/pages/BookingFlow.tsx)
+   - **Issue**: Confirmation step (Step 4) wasn't rendering, preventing users from seeing booking summary
+   - **Fix**: Added conditional rendering `{currentStep === 4 && <BookingReview />}`
+
+2. **Datetime Validation with Timezone** (shared/schema.ts)
+   - **Issue**: `createAppointmentSchema` rejected ISO timestamps with timezone offsets (e.g., "2025-11-10T09:00:00-05:00")
+   - **Fix**: Changed `z.string().datetime()` to `z.string().datetime({ offset: true })`
+
+3. **Admin Dialog Handlers** (client/src/pages/admin/Services.tsx, Barbers.tsx)
+   - **Issue**: "Nuevo Servicio" and "Nuevo Barbero" buttons didn't open dialogs
+   - **Fix**: Updated `handleDialogClose` to accept boolean parameter from `onOpenChange` callback
+
+4. **Missing /book Route** (client/src/App.tsx)
+   - **Issue**: Booking flow was unreachable from client-side routing
+   - **Fix**: Added `<Route path="/book" component={BookingFlow}/>`
+
+5. **Availability Validation Unification** (server/routes.ts)
+   - **Issue**: POST /api/appointments used custom Prisma query for validation while frontend used `calculateAvailableSlots()`, causing discrepancies
+   - **Fix**: Replaced custom query with call to `calculateAvailableSlots()` for consistent validation logic
+
+6. **Type Mismatch in calculateAvailableSlots** (server/routes.ts)
+   - **Issue**: Passing Date object to function expecting string "YYYY-MM-DD", causing 500 errors
+   - **Fix**: Added `const dateStr = format(startDate, 'yyyy-MM-dd')` before calling `calculateAvailableSlots`
+
+7. **Array Comparison Bug** (server/routes.ts)
+   - **Issue**: Used `.includes(requestedTime)` on array of TimeSlot objects instead of string array, always returning false
+   - **Fix**: Changed to `availableSlots.some(slot => slot.startTime === requestedTime && slot.available)`
+
+**Testing**: All fixes verified with end-to-end Playwright tests covering booking flow, admin CRUD, and availability validation.
+
+**Architect Review**: Approved with recommendations for future hardening (use `formatInTimeZone`, investigate console NaN warnings, extend edge case coverage).
