@@ -18,9 +18,16 @@ Preferred communication style: Simple, everyday language.
 - **Technology Stack:** Express.js with TypeScript, Prisma ORM, PostgreSQL (Neon serverless), JWT-based authentication (httpOnly cookies), bcryptjs for hashing, and Zod for validation.
 - **API Design:** RESTful API with endpoints for authentication, services, barbers, appointments, clients, admin operations, real-time availability, and iCalendar generation.
 - **Authentication & Authorization:** Role-based access control (ADMIN, BARBER, CLIENT), JWT tokens in httpOnly cookies, CSRF protection, and rate limiting on auth endpoints.
+  - **Multi-Role Support:** Users can have multiple accessible roles (e.g., ADMIN user can also be a BARBER). The `accessibleRoles` array is calculated based on related records and included in all auth responses.
+  - **Admin-Barber Access:** ADMIN users with an associated Barber record can access both admin and barber panels. The `requireBarberAccess()` middleware validates that the user has barber permissions and assigns the appropriate `barberId`.
 - **Security Measures:** Defense-in-depth CSRF, password requirements, secure session management, IP/User-Agent logging, and trust proxy configuration.
 - **Availability Calculation:** A dedicated service calculates available time slots considering barber schedules, exceptions, service duration, and existing appointments, returning results in America/Bogota timezone.
 - **Notification System:** Utilizes Meta Cloud API for WhatsApp and VAPID keys for web push notifications, with comprehensive logging and configurable settings.
+- **Analytics & Reporting:** 
+  - Admin and barber dashboards support date range filtering with query params (startDate, endDate).
+  - Time-series aggregation provides daily appointment and revenue breakdowns.
+  - Service breakdown analytics show distribution of appointments by service type.
+  - All date filtering uses America/Bogota timezone with startOfDay/endOfDay normalization.
 
 ### Database Architecture
 - **ORM & Schema:** Prisma ORM with PostgreSQL; schema defined in `shared/schema.ts` (TypeScript) and Prisma schema, with migrations in `migrations/`.
