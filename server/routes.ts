@@ -342,7 +342,9 @@ router.post('/api/appointments', apiLimiter, async (req: Request, res: Response)
     const availableSlots = await calculateAvailableSlots(serviceId, barberId, dateStr);
     const requestedTime = format(startDate, 'HH:mm');
     
-    if (!availableSlots.includes(requestedTime)) {
+    const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
+    
+    if (!isAvailable) {
       logger.warn('Slot not available', { 
         barberId, 
         startDate: startDate.toISOString(), 
