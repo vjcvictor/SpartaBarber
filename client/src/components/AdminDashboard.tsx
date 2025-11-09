@@ -1,13 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Calendar, Users, DollarSign, Scissors } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar, Users, DollarSign, UserCheck } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const statsData = {
-  totalAppointments: 127,
-  activeBarbers: 3,
-  totalRevenue: 3250000,
-  servicesBooked: 89,
-};
+import type { DashboardStats } from '@shared/schema';
 
 const chartData = [
   { day: 'Lun', citas: 18 },
@@ -18,7 +14,25 @@ const chartData = [
   { day: 'Sáb', citas: 15 },
 ];
 
+function StatsCardSkeleton() {
+  return (
+    <Card className="p-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="w-12 h-12 rounded-lg" />
+        <div className="space-y-2 flex-1">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-8 w-16" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export default function AdminDashboard() {
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
+    queryKey: ['/api/admin/stats'],
+  });
+
   return (
     <div className="space-y-8">
       <div>
@@ -29,55 +43,72 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Calendar className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Citas</p>
-              <p className="text-2xl font-bold">{statsData.totalAppointments}</p>
-            </div>
-          </div>
-        </Card>
+        {isLoading ? (
+          <>
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+            <StatsCardSkeleton />
+          </>
+        ) : stats ? (
+          <>
+            <Card className="p-6" data-testid="card-total-citas">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Citas</p>
+                  <p className="text-2xl font-bold" data-testid="text-total-appointments">
+                    {stats.totalAppointments}
+                  </p>
+                </div>
+              </div>
+            </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Users className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Barberos Activos</p>
-              <p className="text-2xl font-bold">{statsData.activeBarbers}</p>
-            </div>
-          </div>
-        </Card>
+            <Card className="p-6" data-testid="card-citas-hoy">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Citas Hoy</p>
+                  <p className="text-2xl font-bold" data-testid="text-appointments-today">
+                    {stats.appointmentsToday}
+                  </p>
+                </div>
+              </div>
+            </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <DollarSign className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Ingresos (COP)</p>
-              <p className="text-2xl font-bold">
-                ${statsData.totalRevenue.toLocaleString('es-CO')}
-              </p>
-            </div>
-          </div>
-        </Card>
+            <Card className="p-6" data-testid="card-ingresos">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Ingresos Este Mes (COP)</p>
+                  <p className="text-2xl font-bold" data-testid="text-revenue">
+                    ${stats.revenueThisMonth.toLocaleString('es-CO')}
+                  </p>
+                </div>
+              </div>
+            </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Scissors className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Servicios</p>
-              <p className="text-2xl font-bold">{statsData.servicesBooked}</p>
-            </div>
-          </div>
-        </Card>
+            <Card className="p-6" data-testid="card-clientes">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <UserCheck className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Clientes</p>
+                  <p className="text-2xl font-bold" data-testid="text-total-clients">
+                    {stats.totalClients}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </>
+        ) : null}
       </div>
 
       <Card className="p-6">

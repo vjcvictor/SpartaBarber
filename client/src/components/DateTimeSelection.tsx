@@ -1,45 +1,91 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, addDays, startOfDay, isSameDay } from 'date-fns';
+import { format, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import type { TimeSlot } from '@shared/schema';
 
 interface DateTimeSelectionProps {
+  serviceId: string;
+  barberId: string;
   selectedDate: Date | null;
   selectedTime: string | null;
   onDateSelect: (date: Date) => void;
   onTimeSelect: (time: string) => void;
-  availableSlots: string[];
 }
 
 export default function DateTimeSelection({
+  serviceId,
+  barberId,
   selectedDate,
   selectedTime,
   onDateSelect,
   onTimeSelect,
-  availableSlots,
 }: DateTimeSelectionProps) {
   const [activeTab, setActiveTab] = useState<string>('today');
   const [calendarDate, setCalendarDate] = useState<Date | undefined>();
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const { toast } = useToast();
 
   const today = startOfDay(new Date());
   const tomorrow = startOfDay(addDays(today, 1));
 
+  const availabilityMutation = useMutation({
+    mutationFn: async (date: Date) => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const res = await apiRequest('POST', '/api/availability', {
+        serviceId,
+        barberId,
+        date: dateStr,
+      });
+      return res.json();
+    },
+    onSuccess: (data: TimeSlot[]) => {
+      setAvailableSlots(data);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudieron cargar los horarios disponibles',
+      });
+      setAvailableSlots([]);
+    },
+  });
+
+  useEffect(() => {
+    if (selectedDate && serviceId && barberId) {
+      availabilityMutation.mutate(selectedDate);
+    }
+  }, [selectedDate, serviceId, barberId]);
+
   const handleQuickDate = (date: Date, tab: string) => {
     setActiveTab(tab);
     onDateSelect(date);
+    onTimeSelect('');
   };
 
   const handleCalendarSelect = (date: Date | undefined) => {
     if (date) {
       setCalendarDate(date);
       onDateSelect(date);
+      onTimeSelect('');
       setActiveTab('other');
+    }
+  };
+
+  const handleTimeSelect = (slot: TimeSlot) => {
+    if (slot.available) {
+      onTimeSelect(slot.startTime);
     }
   };
 
@@ -102,20 +148,28 @@ export default function DateTimeSelection({
         <h3 className="text-lg font-semibold mb-4">
           {selectedDate ? 'Horarios Disponibles' : 'Selecciona una fecha primero'}
         </h3>
-        {selectedDate && availableSlots.length > 0 ? (
+        {availabilityMutation.isPending ? (
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : selectedDate && availableSlots.length > 0 ? (
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {availableSlots.map((slot) => (
               <Button
-                key={slot}
-                variant={selectedTime === slot ? 'default' : 'outline'}
+                key={slot.startTime}
+                variant={selectedTime === slot.startTime ? 'default' : 'outline'}
                 className={cn(
                   "h-12",
-                  selectedTime === slot && "ring-2 ring-primary/50"
+                  selectedTime === slot.startTime && "ring-2 ring-primary/50",
+                  !slot.available && "opacity-50 cursor-not-allowed"
                 )}
-                onClick={() => onTimeSelect(slot)}
-                data-testid={`button-time-${slot.replace(':', '-')}`}
+                onClick={() => handleTimeSelect(slot)}
+                disabled={!slot.available}
+                data-testid={`button-time-${slot.startTime.replace(':', '-')}`}
               >
-                {slot}
+                {slot.startTime}
               </Button>
             ))}
           </div>

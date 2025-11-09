@@ -1,16 +1,44 @@
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { Barber } from '@/lib/store';
+import type { Barber } from '@shared/schema';
 
 interface BarberSelectionProps {
-  barbers: Barber[];
+  serviceId: string;
   selectedBarber: Barber | null;
   onSelect: (barber: Barber) => void;
 }
 
-export default function BarberSelection({ barbers, selectedBarber, onSelect }: BarberSelectionProps) {
+export default function BarberSelection({ serviceId, selectedBarber, onSelect }: BarberSelectionProps) {
+  const { data: barbers = [], isLoading } = useQuery<Barber[]>({
+    queryKey: ['/api/barbers', serviceId],
+    enabled: !!serviceId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Selecciona tu Barbero</h2>
+          <p className="text-muted-foreground">Elige el profesional que quieres que te atienda</p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <Skeleton className="w-20 h-20 rounded-full" />
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -36,18 +64,11 @@ export default function BarberSelection({ barbers, selectedBarber, onSelect }: B
             >
               <div className="flex flex-col items-center text-center space-y-3">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={barber.photoUrl} alt={barber.name} />
+                  <AvatarImage src={barber.photoUrl || undefined} alt={barber.name} />
                   <AvatarFallback>{barber.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="text-lg font-semibold">{barber.name}</h3>
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <Star className="w-4 h-4 fill-primary text-primary" />
-                    <span className="text-sm font-medium">{barber.rating.toFixed(1)}</span>
-                    <span className="text-sm text-muted-foreground">
-                      ({barber.reviewCount})
-                    </span>
-                  </div>
                 </div>
               </div>
             </Card>

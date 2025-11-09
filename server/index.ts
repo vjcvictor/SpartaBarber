@@ -1,8 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import cookieParser from "cookie-parser";
 import { setupVite, serveStatic, log } from "./vite";
+import routes from "./routes";
 
 const app = express();
+app.use(cookieParser());
 
 declare module 'http' {
   interface IncomingMessage {
@@ -47,7 +49,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  // Register API routes
+  app.use(routes);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -56,6 +59,8 @@ app.use((req, res, next) => {
     res.status(status).json({ message });
     throw err;
   });
+
+  const server = (await import("http")).createServer(app);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

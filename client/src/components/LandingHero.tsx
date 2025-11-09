@@ -1,13 +1,20 @@
 import { Button } from '@/components/ui/button';
-import { Calendar, Scissors, Clock, Award } from 'lucide-react';
+import { Calendar, Scissors, Clock, Award, UserPlus } from 'lucide-react';
 import heroImage from '@assets/stock_images/professional_barbers_bc29be2c.jpg';
 
 interface LandingHeroProps {
   onBookingClick: () => void;
   onLoginClick: () => void;
+  onRegisterClick?: () => void;
+  isLoggedIn?: boolean;
 }
 
-export default function LandingHero({ onBookingClick, onLoginClick }: LandingHeroProps) {
+export default function LandingHero({ 
+  onBookingClick, 
+  onLoginClick, 
+  onRegisterClick,
+  isLoggedIn = false 
+}: LandingHeroProps) {
   return (
     <div className="min-h-screen bg-background">
       <div 
@@ -36,15 +43,41 @@ export default function LandingHero({ onBookingClick, onLoginClick }: LandingHer
               <Calendar className="w-5 h-5 mr-2" />
               Agendar Cita
             </Button>
-            <Button 
-              size="lg" 
-              variant="secondary"
-              className="text-lg px-8"
-              onClick={onLoginClick}
-              data-testid="button-login"
-            >
-              Iniciar Sesión
-            </Button>
+            {!isLoggedIn ? (
+              <>
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="text-lg px-8 bg-background/80 backdrop-blur-sm"
+                  onClick={onLoginClick}
+                  data-testid="button-login"
+                >
+                  Iniciar Sesión
+                </Button>
+                {onRegisterClick && (
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    className="text-lg px-8 bg-background/80 backdrop-blur-sm"
+                    onClick={onRegisterClick}
+                    data-testid="button-register"
+                  >
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    Registrarse
+                  </Button>
+                )}
+              </>
+            ) : (
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="text-lg px-8 bg-background/80 backdrop-blur-sm"
+                onClick={onLoginClick}
+                data-testid="button-logout-hero"
+              >
+                Cerrar Sesión
+              </Button>
+            )}
           </div>
         </div>
       </div>

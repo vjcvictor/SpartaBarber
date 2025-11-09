@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { parsePhoneNumber } from 'libphonenumber-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,13 +27,30 @@ const clientFormSchema = z.object({
   phone: z.string().min(7, 'El teléfono debe tener al menos 7 dígitos'),
   email: z.string().email('Ingresa un email válido'),
   notes: z.string().optional(),
+}).refine((data) => {
+  try {
+    const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+    return phoneNumber.isValid();
+  } catch {
+    return false;
+  }
+}, {
+  message: 'Número de teléfono inválido',
+  path: ['phone'],
 });
 
 type ClientFormData = z.infer<typeof clientFormSchema>;
 
+export interface ClientFormOutput {
+  fullName: string;
+  phoneE164: string;
+  email: string;
+  notes: string;
+}
+
 interface ClientFormProps {
   initialData?: Partial<ClientFormData>;
-  onSubmit: (data: ClientFormData) => void;
+  onSubmit: (data: ClientFormOutput) => void;
 }
 
 export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
@@ -47,6 +65,22 @@ export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
     },
   });
 
+  const handleSubmit = (data: ClientFormData) => {
+    try {
+      const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+      const phoneE164 = phoneNumber.format('E.164');
+      
+      onSubmit({
+        fullName: data.fullName,
+        phoneE164,
+        email: data.email,
+        notes: data.notes || '',
+      });
+    } catch (error) {
+      form.setError('phone', { message: 'Error al procesar el número de teléfono' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,7 +91,7 @@ export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="fullName"

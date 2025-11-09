@@ -1,0 +1,427 @@
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import AdminLayout from '@/components/AdminLayout';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { createBarberSchema, updateBarberSchema, type Service } from '@shared/schema';
+import type { CreateBarberInput, UpdateBarberInput } from '@shared/schema';
+
+interface BarberResponse {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  photoUrl: string | null;
+  weeklySchedule: any;
+  exceptions: any;
+  services: string[];
+}
+
+export default function Barbers() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingBarber, setEditingBarber] = useState<BarberResponse | null>(null);
+  const { toast } = useToast();
+
+  const { data: barbers, isLoading } = useQuery<BarberResponse[]>({
+    queryKey: ['/api/admin/barbers'],
+  });
+
+  const { data: services } = useQuery<Service[]>({
+    queryKey: ['/api/admin/services'],
+  });
+
+  const form = useForm<CreateBarberInput | UpdateBarberInput>({
+    resolver: zodResolver(editingBarber ? updateBarberSchema : createBarberSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      photoUrl: '',
+      weeklySchedule: JSON.stringify([
+        { dayOfWeek: 1, start: '09:00', end: '17:00', breaks: [] },
+        { dayOfWeek: 2, start: '09:00', end: '17:00', breaks: [] },
+        { dayOfWeek: 3, start: '09:00', end: '17:00', breaks: [] },
+        { dayOfWeek: 4, start: '09:00', end: '17:00', breaks: [] },
+        { dayOfWeek: 5, start: '09:00', end: '17:00', breaks: [] },
+        { dayOfWeek: 6, start: '09:00', end: '14:00', breaks: [] },
+      ], null, 2),
+      services: [],
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateBarberInput) => {
+      await apiRequest('POST', '/api/admin/barbers', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/barbers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/barbers'] });
+      toast({
+        title: 'Barbero creado',
+        description: 'El barbero se ha creado correctamente',
+      });
+      setIsDialogOpen(false);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al crear el barbero',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateBarberInput }) => {
+      await apiRequest('PUT', `/api/admin/barbers/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/barbers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/barbers'] });
+      toast({
+        title: 'Barbero actualizado',
+        description: 'El barbero se ha actualizado correctamente',
+      });
+      setIsDialogOpen(false);
+      setEditingBarber(null);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al actualizar el barbero',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/admin/barbers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/barbers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/barbers'] });
+      toast({
+        title: 'Barbero eliminado',
+        description: 'El barbero se ha eliminado correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al eliminar el barbero',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  function handleEdit(barber: BarberResponse) {
+    setEditingBarber(barber);
+    form.reset({
+      name: barber.name,
+      email: barber.email,
+      photoUrl: barber.photoUrl || '',
+      weeklySchedule: JSON.stringify(barber.weeklySchedule, null, 2),
+      services: barber.services,
+    });
+    setIsDialogOpen(true);
+  }
+
+  function handleDialogClose() {
+    setIsDialogOpen(false);
+    setEditingBarber(null);
+    form.reset();
+  }
+
+  function onSubmit(data: any) {
+    if (editingBarber) {
+      const updateData: UpdateBarberInput = {
+        name: data.name,
+        email: data.email,
+        photoUrl: data.photoUrl,
+        weeklySchedule: data.weeklySchedule,
+        services: data.services,
+      };
+      if (data.password) {
+        updateData.password = data.password;
+      }
+      updateMutation.mutate({ id: editingBarber.id, data: updateData });
+    } else {
+      createMutation.mutate(data as CreateBarberInput);
+    }
+  }
+
+  const selectedServices = form.watch('services') || [];
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Barberos</h1>
+            <p className="text-muted-foreground">
+              Gestiona el equipo de barberos
+            </p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-new-barber">
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Barbero
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingBarber ? 'Editar Barbero' : 'Nuevo Barbero'}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingBarber ? 'Actualiza la información del barbero' : 'Crea un nuevo barbero'}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-barber-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="email" data-testid="input-barber-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Contraseña {editingBarber && '(dejar vacío para no cambiar)'}
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} type="password" data-testid="input-barber-password" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="photoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL Foto (opcional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://..." data-testid="input-barber-photo" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="weeklySchedule"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Horario Semanal (JSON)</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} rows={8} className="font-mono text-xs" data-testid="input-barber-schedule" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="services"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Servicios</FormLabel>
+                        <div className="space-y-2">
+                          {services?.map((service) => (
+                            <FormField
+                              key={service.id}
+                              control={form.control}
+                              name="services"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={selectedServices.includes(service.id)}
+                                      onCheckedChange={(checked) => {
+                                        const current = field.value || [];
+                                        const updated = checked
+                                          ? [...current, service.id]
+                                          : current.filter((id: string) => id !== service.id);
+                                        field.onChange(updated);
+                                      }}
+                                      data-testid={`checkbox-service-${service.id}`}
+                                    />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                    <FormLabel className="font-normal">
+                                      {service.icon} {service.name}
+                                    </FormLabel>
+                                  </div>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleDialogClose}
+                      data-testid="button-cancel"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                      data-testid="button-submit-barber"
+                    >
+                      {editingBarber ? 'Actualizar' : 'Crear'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card>
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Servicios</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {barbers?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No hay barberos registrados
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  barbers?.map((barber) => (
+                    <TableRow key={barber.id} data-testid={`row-barber-${barber.id}`}>
+                      <TableCell className="font-medium" data-testid="text-barber-name">
+                        {barber.name}
+                      </TableCell>
+                      <TableCell data-testid="text-barber-email">
+                        {barber.email}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {barber.services.map((serviceId) => {
+                            const service = services?.find(s => s.id === serviceId);
+                            return service ? (
+                              <Badge key={serviceId} variant="secondary" data-testid="badge-barber-service">
+                                {service.icon} {service.name}
+                              </Badge>
+                            ) : null;
+                          })}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(barber)}
+                            data-testid="button-edit-barber"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteMutation.mutate(barber.id)}
+                            disabled={deleteMutation.isPending}
+                            data-testid="button-delete-barber"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+      </div>
+    </AdminLayout>
+  );
+}

@@ -1,21 +1,5 @@
 import { create } from 'zustand';
-
-export interface Service {
-  id: string;
-  name: string;
-  icon: string;
-  durationMin: number;
-  priceCOP: number;
-  description: string;
-}
-
-export interface Barber {
-  id: string;
-  name: string;
-  photoUrl: string;
-  rating: number;
-  reviewCount: number;
-}
+import type { Service, Barber } from '@shared/schema';
 
 export interface BookingState {
   currentStep: number;

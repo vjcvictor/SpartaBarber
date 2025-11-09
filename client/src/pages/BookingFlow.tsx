@@ -1,74 +1,22 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useBookingStore } from '@/lib/store';
 import BookingProgress from '@/components/BookingProgress';
 import ServiceSelection from '@/components/ServiceSelection';
 import BarberSelection from '@/components/BarberSelection';
 import DateTimeSelection from '@/components/DateTimeSelection';
-import ClientForm from '@/components/ClientForm';
+import ClientForm, { type ClientFormOutput } from '@/components/ClientForm';
 import BookingReview from '@/components/BookingReview';
-import BookingConfirmation from '@/components/BookingConfirmation';
-import barber1 from '@assets/stock_images/professional_male_ba_17aca5e8.jpg';
-import barber2 from '@assets/stock_images/professional_male_ba_7286d797.jpg';
-import barber3 from '@assets/stock_images/professional_male_ba_f37dd0c0.jpg';
-
-const mockServices = [
-  {
-    id: '1',
-    name: 'Corte Clásico',
-    icon: '✂️',
-    durationMin: 30,
-    priceCOP: 15000,
-    description: 'Corte tradicional con tijera y máquina',
-  },
-  {
-    id: '2',
-    name: 'Corte + Barba',
-    icon: '🧔‍♂️',
-    durationMin: 45,
-    priceCOP: 25000,
-    description: 'Corte completo más arreglo de barba',
-  },
-  {
-    id: '3',
-    name: 'Limpieza Facial',
-    icon: '💧',
-    durationMin: 40,
-    priceCOP: 30000,
-    description: 'Tratamiento facial profundo',
-  },
-];
-
-const mockBarbers = [
-  {
-    id: '1',
-    name: 'Andrés',
-    photoUrl: barber1,
-    rating: 4.8,
-    reviewCount: 54,
-  },
-  {
-    id: '2',
-    name: 'Miguel',
-    photoUrl: barber2,
-    rating: 4.9,
-    reviewCount: 80,
-  },
-  {
-    id: '3',
-    name: 'Carlos',
-    photoUrl: barber3,
-    rating: 4.7,
-    reviewCount: 42,
-  },
-];
-
-const mockSlots = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
-];
+import AppointmentConfirmation from './AppointmentConfirmation';
+import type { Service } from '@shared/schema';
 
 export default function BookingFlow() {
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
   const {
     currentStep,
     selectedService,
@@ -86,35 +34,42 @@ export default function BookingFlow() {
     reset,
   } = useBookingStore();
 
-  const handleClientFormSubmit = (data: any) => {
-    const phoneE164 = `${data.countryCode} ${data.phone}`;
+  const { data: services = [], isLoading: servicesLoading } = useQuery<Service[]>({
+    queryKey: ['/api/services'],
+  });
+
+  const handleClientFormSubmit = (data: ClientFormOutput) => {
     setClientData({
       fullName: data.fullName,
-      phoneE164,
+      phoneE164: data.phoneE164,
       email: data.email,
-      notes: data.notes || '',
+      notes: data.notes,
     });
     goNext();
   };
 
-  const handleConfirmBooking = () => {
-    console.log('Booking confirmed!', {
-      service: selectedService,
-      barber: selectedBarber,
-      date: selectedDate,
-      time: selectedTime,
-      clientData,
-    });
-    goNext();
+  const handleAppointmentConfirmed = (id: string) => {
+    setAppointmentId(id);
+    setShowConfirmation(true);
   };
 
-  const handleDownloadICS = () => {
-    console.log('Downloading ICS file...');
-    alert('En la versión completa, esto descargará un archivo .ics para agregar a tu calendario');
+  const handleBackToHome = () => {
+    reset();
+    setAppointmentId(null);
+    setShowConfirmation(false);
   };
 
   const canProceedFromStep1 = selectedService && selectedBarber;
   const canProceedFromStep2 = selectedDate && selectedTime;
+
+  if (showConfirmation && appointmentId) {
+    return (
+      <AppointmentConfirmation
+        appointmentId={appointmentId}
+        onBackToHome={handleBackToHome}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,14 +91,28 @@ export default function BookingFlow() {
 
           {currentStep === 1 && (
             <div className="space-y-8">
-              <ServiceSelection
-                services={mockServices}
-                selectedService={selectedService}
-                onSelect={setService}
-              />
+              {servicesLoading ? (
+                <div className="space-y-4">
+                  <div>
+                    <Skeleton className="h-8 w-64 mb-2" />
+                    <Skeleton className="h-5 w-96" />
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-64 w-full" />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <ServiceSelection
+                  services={services}
+                  selectedService={selectedService}
+                  onSelect={setService}
+                />
+              )}
               {selectedService && (
                 <BarberSelection
-                  barbers={mockBarbers}
+                  serviceId={selectedService.id}
                   selectedBarber={selectedBarber}
                   onSelect={setBarber}
                 />
@@ -162,14 +131,15 @@ export default function BookingFlow() {
             </div>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 2 && selectedService && selectedBarber && (
             <div className="space-y-8">
               <DateTimeSelection
+                serviceId={selectedService.id}
+                barberId={selectedBarber.id}
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
                 onDateSelect={setDate}
                 onTimeSelect={setTime}
-                availableSlots={selectedDate ? mockSlots : []}
               />
               {canProceedFromStep2 && (
                 <div className="flex justify-end">
@@ -192,7 +162,7 @@ export default function BookingFlow() {
                   initialData={{
                     fullName: clientData.fullName,
                     countryCode: '+57',
-                    phone: clientData.phoneE164.replace('+57 ', ''),
+                    phone: clientData.phoneE164.replace('+57', '').trim(),
                     email: clientData.email,
                     notes: clientData.notes,
                   }}
@@ -206,32 +176,10 @@ export default function BookingFlow() {
                   date={selectedDate}
                   time={selectedTime}
                   clientData={clientData}
+                  onSuccess={handleAppointmentConfirmed}
                 />
-                {clientData.fullName && clientData.email && (
-                  <Button 
-                    size="lg" 
-                    className="w-full mt-6"
-                    onClick={handleConfirmBooking}
-                    data-testid="button-confirm-booking"
-                  >
-                    Confirmar Cita
-                  </Button>
-                )}
               </div>
             </div>
-          )}
-
-          {currentStep === 4 && selectedService && selectedBarber && selectedDate && selectedTime && (
-            <BookingConfirmation
-              service={selectedService}
-              barber={selectedBarber}
-              date={selectedDate}
-              time={selectedTime}
-              onNewBooking={reset}
-              onRegister={() => console.log('Register clicked')}
-              onLogin={() => console.log('Login clicked')}
-              onDownloadICS={handleDownloadICS}
-            />
           )}
         </div>
       </div>

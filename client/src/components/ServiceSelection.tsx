@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Scissors, User, Droplet } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Service } from '@/lib/store';
+import type { Service } from '@shared/schema';
 
 interface ServiceSelectionProps {
   services: Service[];

@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +22,10 @@ import {
   Settings,
   LogOut,
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import type { AuthResponse } from '@shared/schema';
 
 const menuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
@@ -36,7 +41,60 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const { data: authData, isLoading } = useQuery<AuthResponse>({
+    queryKey: ['/api/auth/me'],
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest('POST', '/api/auth/logout');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      setLocation('/');
+      toast({
+        title: 'Sesión cerrada',
+        description: 'Has cerrado sesión correctamente',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Error al cerrar sesión',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!isLoading && (!authData || authData.user.role !== 'ADMIN')) {
+      setLocation('/');
+      toast({
+        title: 'Acceso denegado',
+        description: 'No tienes permisos de administrador',
+        variant: 'destructive',
+      });
+    }
+  }, [authData, isLoading, setLocation, toast]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="space-y-4 w-full max-w-md">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!authData || authData.user.role !== 'ADMIN') {
+    return null;
+  }
 
   const style = {
     '--sidebar-width': '16rem',
@@ -57,7 +115,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild isActive={location === item.url}>
-                        <Link href={item.url}>
+                        <Link href={item.url} data-testid={`link-admin-${item.title.toLowerCase()}`}>
                           <item.icon className="w-4 h-4" />
                           <span>{item.title}</span>
                         </Link>
@@ -70,12 +128,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             <SidebarGroup className="mt-auto">
               <SidebarGroupContent>
+                <div className="px-4 py-2 text-sm text-muted-foreground">
+                  <p data-testid="text-user-email">{authData.user.email}</p>
+                </div>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <button onClick={() => console.log('Logout')}>
+                      <button
+                        onClick={() => logoutMutation.mutate()}
+                        disabled={logoutMutation.isPending}
+                        data-testid="button-logout"
+                      >
                         <LogOut className="w-4 h-4" />
-                        <span>Cerrar Sesión</span>
+                        <span>{logoutMutation.isPending ? 'Cerrando...' : 'Cerrar Sesión'}</span>
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -1,10 +1,15 @@
+import { useMutation } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, Mail, Phone, FileText, Scissors } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Service, Barber } from '@/lib/store';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { formatInTimeZone } from 'date-fns-tz';
+import type { Service, Barber } from '@shared/schema';
 
 interface BookingReviewProps {
   service: Service;
@@ -17,7 +22,10 @@ interface BookingReviewProps {
     email: string;
     notes: string;
   };
+  onSuccess: (appointmentId: string) => void;
 }
+
+const TIMEZONE = 'America/Bogota';
 
 export default function BookingReview({
   service,
@@ -25,7 +33,48 @@ export default function BookingReview({
   date,
   time,
   clientData,
+  onSuccess,
 }: BookingReviewProps) {
+  const { toast } = useToast();
+
+  const createAppointmentMutation = useMutation({
+    mutationFn: async () => {
+      const [hours, minutes] = time.split(':');
+      const appointmentDate = new Date(date);
+      appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const startDateTime = formatInTimeZone(appointmentDate, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+      
+      const res = await apiRequest('POST', '/api/appointments', {
+        serviceId: service.id,
+        barberId: barber.id,
+        startDateTime,
+        clientData: {
+          fullName: clientData.fullName,
+          phoneE164: clientData.phoneE164,
+          email: clientData.email,
+          notes: clientData.notes,
+        },
+      });
+      return res.json();
+    },
+    onSuccess: (data: { id: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
+      toast({
+        title: '¡Cita agendada!',
+        description: 'Tu cita ha sido confirmada exitosamente',
+      });
+      onSuccess(data.id);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Error al agendar',
+        description: error.message || 'No se pudo agendar la cita. Intenta de nuevo.',
+      });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -43,13 +92,13 @@ export default function BookingReview({
               <Scissors className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <h4 className="font-semibold text-lg">{service.name}</h4>
+              <h4 className="font-semibold text-lg" data-testid="text-service-name">{service.name}</h4>
               <p className="text-sm text-muted-foreground">{service.description}</p>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-sm text-muted-foreground">
                   {service.durationMin} minutos
                 </span>
-                <span className="text-lg font-bold text-primary">
+                <span className="text-lg font-bold text-primary" data-testid="text-service-price">
                   ${service.priceCOP.toLocaleString('es-CO')}
                 </span>
               </div>
@@ -63,14 +112,11 @@ export default function BookingReview({
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Barbero</h3>
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
-              <AvatarImage src={barber.photoUrl} alt={barber.name} />
+              <AvatarImage src={barber.photoUrl || undefined} alt={barber.name} />
               <AvatarFallback>{barber.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h4 className="font-semibold text-lg">{barber.name}</h4>
-              <p className="text-sm text-muted-foreground">
-                ⭐ {barber.rating.toFixed(1)} ({barber.reviewCount} reseñas)
-              </p>
+              <h4 className="font-semibold text-lg" data-testid="text-barber-name">{barber.name}</h4>
             </div>
           </div>
         </div>
@@ -82,7 +128,7 @@ export default function BookingReview({
             <Calendar className="w-5 h-5 text-muted-foreground" />
             <div>
               <p className="text-sm text-muted-foreground">Fecha</p>
-              <p className="font-medium">
+              <p className="font-medium" data-testid="text-appointment-date">
                 {format(date, "EEEE, d 'de' MMMM", { locale: es })}
               </p>
             </div>
@@ -91,7 +137,7 @@ export default function BookingReview({
             <Clock className="w-5 h-5 text-muted-foreground" />
             <div>
               <p className="text-sm text-muted-foreground">Hora</p>
-              <p className="font-medium">{time}</p>
+              <p className="font-medium" data-testid="text-appointment-time">{time}</p>
             </div>
           </div>
         </div>
@@ -105,28 +151,38 @@ export default function BookingReview({
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <User className="w-5 h-5 text-muted-foreground" />
-              <span>{clientData.fullName}</span>
+              <span data-testid="text-client-name">{clientData.fullName}</span>
             </div>
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-muted-foreground" />
-              <span>{clientData.email}</span>
+              <span data-testid="text-client-email">{clientData.email}</span>
             </div>
             <div className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-muted-foreground" />
-              <span>{clientData.phoneE164}</span>
+              <span data-testid="text-client-phone">{clientData.phoneE164}</span>
             </div>
             {clientData.notes && (
               <div className="flex items-start gap-3">
                 <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Notas</p>
-                  <p className="text-sm">{clientData.notes}</p>
+                  <p className="text-sm" data-testid="text-client-notes">{clientData.notes}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
       </Card>
+
+      <Button 
+        size="lg" 
+        className="w-full"
+        onClick={() => createAppointmentMutation.mutate()}
+        disabled={createAppointmentMutation.isPending}
+        data-testid="button-confirm-booking"
+      >
+        {createAppointmentMutation.isPending ? 'Confirmando...' : 'Confirmar Cita'}
+      </Button>
     </div>
   );
 }
