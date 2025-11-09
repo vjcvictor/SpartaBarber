@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/app.db"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   // ADMIN, BARBER, CLIENT
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  barber       Barber?
+  client       Client?
+  auditLogs    AuditLog[]
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  icon        String
+  priceCOP    Int
+  description String
+  durationMin Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  appointments Appointment[]
+  barbers      BarberService[]
+}
+
+model Barber {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  name            String
+  photoUrl        String?
+  weeklySchedule  String   // JSON: [{dayOfWeek:0-6, start:'09:00', end:'17:30', breaks:[{start:'12:30',end:'13:30'}]}]
+  exceptions      String   @default("[]") // JSON: [{date:'2025-05-10', start:'10:00', end:'14:00', closed:false}]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     BarberService[]
+  appointments Appointment[]
+}
+
+model BarberService {
+  barberId  String
+  serviceId String
+  createdAt DateTime @default(now())
+
+  barber  Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+}
+
+model Client {
+  id         String   @id @default(uuid())
+  userId     String?  @unique
+  fullName   String
+  phoneE164  String
+  email      String   @unique
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+}
+
+model Appointment {
+  id            String   @id @default(uuid())
+  serviceId     String
+  barberId      String
+  clientId      String
+  startDateTime DateTime
+  endDateTime   DateTime
+  status        String   // agendado, cancelado, reagendado
+  notes         String?
+  createdByRole String   // ADMIN, BARBER, CLIENT
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  service Service @relation(fields: [serviceId], references: [id])
+  barber  Barber  @relation(fields: [barberId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+}
+
+model Config {
+  id                       String   @id @default(uuid())
+  businessName             String   @default("Barbería Sparta")
+  timezone                 String   @default("America/Bogota")
+  currency                 String   @default("COP")
+  primaryColor             String   @default("#f59f0a")
+  secondaryColor           String   @default("#3a312c")
+  homepageTitle            String   @default("Sparta Barbería")
+  homepageDescription      String   @default("Estilo y tradición en cada corte. Agenda tu cita en minutos.")
+  homepageImages           String   @default("[]") // JSON array
+  whatsappTokenEnc         String?
+  whatsappPhoneNumberId    String?
+  whatsappBusinessId       String?
+  whatsappFromNumber       String?
+  smtpHost                 String?
+  smtpPort                 Int?
+  smtpUser                 String?
+  smtpPassEnc              String?
+  smtpTls                  Boolean  @default(true)
+  smtpEnabled              Boolean  @default(false)
+  vapidPublicKey           String?
+  vapidPrivateKeyEnc       String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model NotificationLog {
+  id          String   @id @default(uuid())
+  channel     String   // push, whatsapp, email
+  event       String   // create, reschedule, cancel, reminder30
+  targetRole  String   // ADMIN, BARBER, CLIENT
+  to          String
+  payload     String   // JSON
+  status      String   // sent, failed, pending
+  error       String?
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  actorRole  String   // ADMIN, BARBER, CLIENT, SYSTEM
+  action     String   // create, update, delete, login, logout
+  entity     String   // service, barber, client, appointment, config
+  entityId   String?
+  diff       String?  // JSON
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
