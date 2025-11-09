@@ -513,6 +513,301 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
   }
 });
 
+// ============ BARBER ROUTES ============
+
+router.get(
+  '/api/barber/stats',
+  authMiddleware,
+  requireRole('BARBER'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Find barber by user ID
+      const barber = await prisma.barber.findUnique({
+        where: { userId: req.user!.id },
+      });
+
+      if (!barber) {
+        return res.status(404).json({ error: 'Barbero no encontrado' });
+      }
+
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const [appointmentsToday, appointmentsTotal] = await Promise.all([
+        prisma.appointment.count({
+          where: {
+            barberId: barber.id,
+            startDateTime: { gte: startOfToday },
+            status: { in: ['agendado', 'reagendado'] },
+          },
+        }),
+        prisma.appointment.count({
+          where: {
+            barberId: barber.id,
+            status: { in: ['agendado', 'reagendado'] },
+          },
+        }),
+      ]);
+
+      res.json({
+        appointmentsToday,
+        appointmentsTotal,
+        barberName: barber.name,
+      });
+    } catch (error) {
+      logger.error('Get barber stats error:', error);
+      res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+  }
+);
+
+router.get(
+  '/api/barber/appointments',
+  authMiddleware,
+  requireRole('BARBER'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Find barber by user ID
+      const barber = await prisma.barber.findUnique({
+        where: { userId: req.user!.id },
+      });
+
+      if (!barber) {
+        return res.status(404).json({ error: 'Barbero no encontrado' });
+      }
+
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          barberId: barber.id,
+        },
+        include: {
+          service: true,
+          client: true,
+        },
+        orderBy: {
+          startDateTime: 'desc',
+        },
+      });
+
+      const response = appointments.map((appt) => ({
+        id: appt.id,
+        serviceId: appt.serviceId,
+        barberId: appt.barberId,
+        clientId: appt.clientId,
+        startDateTime: appt.startDateTime.toISOString(),
+        endDateTime: appt.endDateTime.toISOString(),
+        status: appt.status,
+        notes: appt.notes || undefined,
+        createdByRole: appt.createdByRole,
+        service: {
+          id: appt.service.id,
+          name: appt.service.name,
+          icon: appt.service.icon,
+          priceCOP: appt.service.priceCOP,
+          description: appt.service.description,
+          durationMin: appt.service.durationMin,
+          active: appt.service.active,
+        },
+        client: {
+          id: appt.client.id,
+          fullName: appt.client.fullName,
+          phoneE164: appt.client.phoneE164,
+          email: appt.client.email,
+          notes: appt.client.notes || undefined,
+        },
+      }));
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Get barber appointments error:', error);
+      res.status(500).json({ error: 'Error al obtener citas' });
+    }
+  }
+);
+
+router.patch(
+  '/api/barber/appointments/:id',
+  authMiddleware,
+  requireRole('BARBER'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['agendado', 'cancelado', 'reagendado'].includes(status)) {
+        return res.status(400).json({ error: 'Estado inválido' });
+      }
+
+      // Find barber
+      const barber = await prisma.barber.findUnique({
+        where: { userId: req.user!.id },
+      });
+
+      if (!barber) {
+        return res.status(404).json({ error: 'Barbero no encontrado' });
+      }
+
+      // Verify appointment belongs to barber
+      const appointment = await prisma.appointment.findUnique({
+        where: { id },
+      });
+
+      if (!appointment) {
+        return res.status(404).json({ error: 'Cita no encontrada' });
+      }
+
+      if (appointment.barberId !== barber.id) {
+        return res.status(403).json({ error: 'No tienes permiso para modificar esta cita' });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id },
+        data: { status },
+      });
+
+      await createAuditLog(
+        req.user!.id,
+        'BARBER',
+        'update',
+        'appointment',
+        id,
+        { status },
+        req
+      );
+
+      res.json({ success: true, status: updated.status });
+    } catch (error) {
+      logger.error('Update barber appointment error:', error);
+      res.status(500).json({ error: 'Error al actualizar cita' });
+    }
+  }
+);
+
+// ============ CLIENT ROUTES ============
+
+router.get(
+  '/api/client/stats',
+  authMiddleware,
+  requireRole('CLIENT'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Find client by user ID
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      const client = await prisma.client.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      const [upcomingAppointments, totalAppointments] = await Promise.all([
+        prisma.appointment.count({
+          where: {
+            clientId: client.id,
+            startDateTime: { gte: new Date() },
+            status: { in: ['agendado', 'reagendado'] },
+          },
+        }),
+        prisma.appointment.count({
+          where: {
+            clientId: client.id,
+          },
+        }),
+      ]);
+
+      res.json({
+        upcomingAppointments,
+        totalAppointments,
+        clientName: client.fullName,
+      });
+    } catch (error) {
+      logger.error('Get client stats error:', error);
+      res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+  }
+);
+
+router.get(
+  '/api/client/appointments',
+  authMiddleware,
+  requireRole('CLIENT'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      // Find client by user email
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      const client = await prisma.client.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          clientId: client.id,
+        },
+        include: {
+          service: true,
+          barber: true,
+        },
+        orderBy: {
+          startDateTime: 'desc',
+        },
+      });
+
+      const response = appointments.map((appt) => ({
+        id: appt.id,
+        serviceId: appt.serviceId,
+        barberId: appt.barberId,
+        clientId: appt.clientId,
+        startDateTime: appt.startDateTime.toISOString(),
+        endDateTime: appt.endDateTime.toISOString(),
+        status: appt.status,
+        notes: appt.notes || undefined,
+        createdByRole: appt.createdByRole,
+        service: {
+          id: appt.service.id,
+          name: appt.service.name,
+          icon: appt.service.icon,
+          priceCOP: appt.service.priceCOP,
+          description: appt.service.description,
+          durationMin: appt.service.durationMin,
+          active: appt.service.active,
+        },
+        barber: {
+          id: appt.barber.id,
+          name: appt.barber.name,
+          photoUrl: appt.barber.photoUrl,
+          weeklySchedule: JSON.parse(appt.barber.weeklySchedule),
+          exceptions: JSON.parse(appt.barber.exceptions),
+          services: [],
+        },
+      }));
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Get client appointments error:', error);
+      res.status(500).json({ error: 'Error al obtener citas' });
+    }
+  }
+);
+
 // ============ ADMIN ROUTES ============
 
 router.get(

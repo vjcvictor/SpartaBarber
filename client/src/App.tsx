@@ -11,6 +11,10 @@ import Services from "@/pages/admin/Services";
 import Barbers from "@/pages/admin/Barbers";
 import Clients from "@/pages/admin/Clients";
 import Settings from "@/pages/admin/Settings";
+import BarberDashboard from "@/pages/barber/Dashboard";
+import BarberAppointments from "@/pages/barber/Appointments";
+import ClientDashboard from "@/pages/client/Dashboard";
+import ClientAppointments from "@/pages/client/Appointments";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +28,10 @@ function Router() {
       <Route path="/admin/barbers" component={Barbers} />
       <Route path="/admin/clients" component={Clients} />
       <Route path="/admin/settings" component={Settings} />
+      <Route path="/barber" component={BarberDashboard} />
+      <Route path="/barber/appointments" component={BarberAppointments} />
+      <Route path="/client" component={ClientDashboard} />
+      <Route path="/client/appointments" component={ClientAppointments} />
       <Route component={NotFound} />
     </Switch>
   );
