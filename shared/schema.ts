@@ -81,7 +81,7 @@ export interface Appointment {
   clientId: string;
   startDateTime: string; // ISO string
   endDateTime: string; // ISO string
-  status: 'agendado' | 'cancelado' | 'reagendado';
+  status: 'agendado' | 'cancelado' | 'reagendado' | 'completado';
   notes?: string;
   createdByRole: 'ADMIN' | 'BARBER' | 'CLIENT';
   service?: Service;
@@ -109,6 +109,15 @@ export const rescheduleAppointmentSchema = z.object({
 });
 
 export type RescheduleAppointmentInput = z.infer<typeof rescheduleAppointmentSchema>;
+
+export const updateAppointmentSchema = z.object({
+  status: z.enum(['agendado', 'cancelado', 'reagendado', 'completado']).optional(),
+  notes: z.string().optional(),
+  startDateTime: z.string().datetime({ offset: true }).optional(),
+  barberId: z.string().uuid().optional(),
+});
+
+export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 
 // Availability types
 export const availabilityRequestSchema = z.object({

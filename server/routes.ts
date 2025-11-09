@@ -13,6 +13,7 @@ import {
   registerSchema,
   createAppointmentSchema,
   rescheduleAppointmentSchema,
+  updateAppointmentSchema,
   availabilityRequestSchema,
   createServiceSchema,
   updateServiceSchema,
@@ -550,6 +551,125 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
   }
 });
 
+router.put(
+  '/api/admin/appointments/:id',
+  authMiddleware,
+  requireRole('ADMIN', 'BARBER'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const data = updateAppointmentSchema.parse(req.body);
+
+      const appointment = await prisma.appointment.findUnique({
+        where: { id },
+        include: {
+          service: true,
+        },
+      });
+
+      if (!appointment) {
+        return res.status(404).json({ error: 'Cita no encontrada' });
+      }
+
+      // Validate 1-hour restriction for status changes
+      // Only apply if changing status and NOT marking as 'completado'
+      if (data.status && data.status !== 'completado' && data.status !== appointment.status) {
+        const now = new Date();
+        const appointmentTime = appointment.startDateTime;
+        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+        if (isBefore(appointmentTime, oneHourFromNow)) {
+          return res.status(400).json({
+            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
+          });
+        }
+      }
+
+      // Validate 1-hour restriction for rescheduling
+      if (data.startDateTime && data.startDateTime !== appointment.startDateTime.toISOString()) {
+        const now = new Date();
+        const appointmentTime = appointment.startDateTime;
+        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+        if (isBefore(appointmentTime, oneHourFromNow)) {
+          return res.status(400).json({
+            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
+          });
+        }
+      }
+
+      // Build update data
+      const updateData: any = {};
+      if (data.status !== undefined) updateData.status = data.status;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.barberId !== undefined) updateData.barberId = data.barberId;
+
+      // If changing startDateTime, also update endDateTime
+      if (data.startDateTime) {
+        const newStartDate = parseISO(data.startDateTime);
+        const newEndDate = addMinutes(newStartDate, appointment.service.durationMin);
+        updateData.startDateTime = newStartDate;
+        updateData.endDateTime = newEndDate;
+
+        // Check availability for the new slot if changing date/time or barber
+        const dateStr = format(newStartDate, 'yyyy-MM-dd');
+        const barberId = data.barberId || appointment.barberId;
+        const availableSlots = await calculateAvailableSlots(appointment.serviceId, barberId, dateStr);
+        const requestedTime = format(newStartDate, 'HH:mm');
+        
+        // Filter out the current appointment when checking availability
+        const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
+        
+        if (!isAvailable) {
+          logger.warn('Slot not available for reschedule', { 
+            barberId, 
+            newStartDate: newStartDate.toISOString(), 
+            requestedTime,
+          });
+          return res.status(400).json({ error: 'El horario seleccionado no está disponible' });
+        }
+      }
+
+      const updatedAppointment = await prisma.appointment.update({
+        where: { id },
+        data: updateData,
+        include: {
+          service: true,
+          barber: true,
+          client: true,
+        },
+      });
+
+      await createAuditLog(
+        req.user!.id,
+        req.user!.role,
+        'update',
+        'appointment',
+        id,
+        data,
+        req
+      );
+
+      logger.info(`Appointment updated: ${id}`);
+
+      res.json({
+        id: updatedAppointment.id,
+        serviceId: updatedAppointment.serviceId,
+        barberId: updatedAppointment.barberId,
+        clientId: updatedAppointment.clientId,
+        startDateTime: updatedAppointment.startDateTime.toISOString(),
+        endDateTime: updatedAppointment.endDateTime.toISOString(),
+        status: updatedAppointment.status,
+        notes: updatedAppointment.notes,
+        createdByRole: updatedAppointment.createdByRole,
+      });
+    } catch (error) {
+      logger.error('Update appointment error:', error);
+      res.status(500).json({ error: 'Error al actualizar la cita' });
+    }
+  }
+);
+
 // ============ BARBER ROUTES ============
 
 router.get(
@@ -615,7 +735,10 @@ router.get(
       
       // Calculate stats for the range
       const periodAppointments = appointmentsInRange.length;
-      const periodRevenueCOP = appointmentsInRange.reduce(
+      
+      // Calculate revenue only from completed appointments
+      const completedAppointmentsInRange = appointmentsInRange.filter(appt => appt.status === 'completado');
+      const periodRevenueCOP = completedAppointmentsInRange.reduce(
         (sum, appt) => sum + appt.service.priceCOP,
         0
       );
@@ -648,7 +771,10 @@ router.get(
           acc[date] = { date, appointments: 0, revenueCOP: 0 };
         }
         acc[date].appointments += 1;
-        acc[date].revenueCOP += appt.service.priceCOP;
+        // Only add revenue if appointment is completed
+        if (appt.status === 'completado') {
+          acc[date].revenueCOP += appt.service.priceCOP;
+        }
         return acc;
       }, {} as Record<string, BarberDashboardTimeSeriesPoint>);
       
@@ -668,7 +794,10 @@ router.get(
           };
         }
         acc[serviceId].appointments += 1;
-        acc[serviceId].revenueCOP += appt.service.priceCOP;
+        // Only add revenue if appointment is completed
+        if (appt.status === 'completado') {
+          acc[serviceId].revenueCOP += appt.service.priceCOP;
+        }
         return acc;
       }, {} as Record<string, ServiceBreakdown>);
       
@@ -1214,7 +1343,10 @@ router.get(
       
       // Calculate stats for the range
       const totalAppointments = appointmentsInRange.length;
-      const revenueThisMonth = appointmentsInRange.reduce(
+      
+      // Calculate revenue only from completed appointments
+      const completedAppointments = appointmentsInRange.filter(appt => appt.status === 'completado');
+      const revenueThisMonth = completedAppointments.reduce(
         (sum, appt) => sum + appt.service.priceCOP,
         0
       );
@@ -1237,7 +1369,10 @@ router.get(
           acc[date] = { date, appointments: 0, revenueCOP: 0 };
         }
         acc[date].appointments += 1;
-        acc[date].revenueCOP += appt.service.priceCOP;
+        // Only add revenue if appointment is completed
+        if (appt.status === 'completado') {
+          acc[date].revenueCOP += appt.service.priceCOP;
+        }
         return acc;
       }, {} as Record<string, DashboardTimeSeriesPoint>);
       
