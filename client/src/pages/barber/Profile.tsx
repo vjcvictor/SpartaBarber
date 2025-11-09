@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import BarberLayout from '@/components/BarberLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -137,14 +138,15 @@ export default function BarberProfile() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Mi Perfil</h1>
-        <p className="text-muted-foreground">Administra tu información personal y horario</p>
-      </div>
+    <BarberLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Mi Perfil</h1>
+          <p className="text-muted-foreground">Administra tu información personal y horario</p>
+        </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Información personal</CardTitle>
@@ -287,6 +289,7 @@ export default function BarberProfile() {
           </div>
         </form>
       </Form>
-    </div>
+      </div>
+    </BarberLayout>
   );
 }
