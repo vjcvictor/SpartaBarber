@@ -104,48 +104,49 @@ async function main() {
   });
   console.log('✅ Barber Miguel created');
 
-  // Create Services
-  const service1 = await prisma.service.upsert({
-    where: { id: 'service-1' },
-    update: {},
-    create: {
-      id: 'service-1',
-      name: 'Corte Clásico',
-      icon: '✂️',
-      priceCOP: 15000,
-      description: 'Corte tradicional con tijera y máquina',
-      durationMin: 30,
-      active: true,
-    },
-  });
+  // Create Services (let Prisma generate UUIDs)
+  // Check if services already exist by name to avoid duplicates
+  let service1 = await prisma.service.findFirst({ where: { name: 'Corte Clásico' } });
+  if (!service1) {
+    service1 = await prisma.service.create({
+      data: {
+        name: 'Corte Clásico',
+        icon: '✂️',
+        priceCOP: 15000,
+        description: 'Corte tradicional con tijera y máquina',
+        durationMin: 30,
+        active: true,
+      },
+    });
+  }
 
-  const service2 = await prisma.service.upsert({
-    where: { id: 'service-2' },
-    update: {},
-    create: {
-      id: 'service-2',
-      name: 'Corte + Barba',
-      icon: '🧔‍♂️',
-      priceCOP: 25000,
-      description: 'Corte completo más arreglo de barba',
-      durationMin: 45,
-      active: true,
-    },
-  });
+  let service2 = await prisma.service.findFirst({ where: { name: 'Corte + Barba' } });
+  if (!service2) {
+    service2 = await prisma.service.create({
+      data: {
+        name: 'Corte + Barba',
+        icon: '🧔‍♂️',
+        priceCOP: 25000,
+        description: 'Corte completo más arreglo de barba',
+        durationMin: 45,
+        active: true,
+      },
+    });
+  }
 
-  const service3 = await prisma.service.upsert({
-    where: { id: 'service-3' },
-    update: {},
-    create: {
-      id: 'service-3',
-      name: 'Limpieza Facial',
-      icon: '💧',
-      priceCOP: 30000,
-      description: 'Tratamiento facial profundo',
-      durationMin: 40,
-      active: true,
-    },
-  });
+  let service3 = await prisma.service.findFirst({ where: { name: 'Limpieza Facial' } });
+  if (!service3) {
+    service3 = await prisma.service.create({
+      data: {
+        name: 'Limpieza Facial',
+        icon: '💧',
+        priceCOP: 30000,
+        description: 'Tratamiento facial profundo',
+        durationMin: 40,
+        active: true,
+      },
+    });
+  }
   console.log('✅ Services created');
 
   // Assign all services to both barbers
