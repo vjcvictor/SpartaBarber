@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { AuthResponse } from '@shared/schema';
+import PanelSwitcher from './PanelSwitcher';
 
 const menuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
@@ -157,6 +158,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <header className="flex items-center gap-4 p-4 border-b">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <h2 className="text-lg font-semibold">Panel de Administración</h2>
+            <div className="ml-auto">
+              <PanelSwitcher />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-8">
             {children}

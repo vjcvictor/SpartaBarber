@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { AuthResponse } from '@shared/schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import PanelSwitcher from './PanelSwitcher';
 
 const menuItems = [
   { title: 'Dashboard', url: '/barber', icon: LayoutDashboard },
@@ -145,6 +146,9 @@ export default function BarberLayout({ children }: BarberLayoutProps) {
           <header className="flex items-center gap-4 p-4 border-b">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <h2 className="text-lg font-semibold">Panel del Barbero</h2>
+            <div className="ml-auto">
+              <PanelSwitcher />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-8">
             {children}

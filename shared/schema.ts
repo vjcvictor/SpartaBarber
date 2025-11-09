@@ -141,6 +141,12 @@ export interface Config {
 }
 
 // Stats types
+export interface DashboardTimeSeriesPoint {
+  date: string; // YYYY-MM-DD
+  appointments: number;
+  revenueCOP: number;
+}
+
 export interface DashboardStats {
   totalAppointments: number;
   appointmentsToday: number;
@@ -149,13 +155,23 @@ export interface DashboardStats {
   totalClients: number;
   totalRevenueCOP: number;
   revenueThisMonth: number;
+  timeSeries: DashboardTimeSeriesPoint[];
 }
 
+export const adminStatsQuerySchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
 // User types
+export type AccessibleRole = 'ADMIN' | 'BARBER' | 'CLIENT';
+
 export interface User {
   id: string;
   email: string;
   role: 'ADMIN' | 'BARBER' | 'CLIENT';
+  barberId?: string;
+  accessibleRoles: AccessibleRole[];
 }
 
 export interface AuthResponse {
@@ -289,3 +305,36 @@ export const updateClientProfileSchema = z.object({
 );
 
 export type UpdateClientProfileInput = z.infer<typeof updateClientProfileSchema>;
+
+// Barber Dashboard types
+export interface BarberDashboardTimeSeriesPoint {
+  date: string; // YYYY-MM-DD
+  appointments: number;
+  revenueCOP: number;
+}
+
+export interface ServiceBreakdown {
+  serviceId: string;
+  serviceName: string;
+  appointments: number;
+  revenueCOP: number;
+}
+
+export interface BarberDashboardStats {
+  barberName: string;
+  // Métricas filtradas (en el período)
+  periodAppointments: number;
+  periodRevenueCOP: number;
+  // Métricas globales
+  appointmentsToday: number;
+  totalAppointments: number;
+  uniqueClientsInPeriod: number;
+  // Datos de gráficas
+  timeSeries: BarberDashboardTimeSeriesPoint[];
+  serviceBreakdown: ServiceBreakdown[];
+}
+
+export const barberStatsQuerySchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});

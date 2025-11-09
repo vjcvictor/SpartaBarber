@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import { prisma } from './lib/prisma';
 import logger from './lib/logger';
-import { authMiddleware, requireRole, type AuthRequest } from './middleware/auth';
+import { authMiddleware, requireRole, requireBarberAccess, type AuthRequest } from './middleware/auth';
 import { createAuditLog } from './middleware/audit';
 import { calculateAvailableSlots } from './services/availability';
 import {
@@ -23,6 +23,8 @@ import {
   updateBarberProfileSchema,
   updateClientProfileSchema,
   weeklyScheduleSchema,
+  adminStatsQuerySchema,
+  barberStatsQuerySchema,
   type AuthResponse,
   type Service,
   type Barber,
@@ -30,11 +32,15 @@ import {
   type Appointment,
   type Config,
   type DashboardStats,
+  type DashboardTimeSeriesPoint,
   type ClientWithStats,
   type AdminConfig,
+  type BarberDashboardStats,
+  type BarberDashboardTimeSeriesPoint,
+  type ServiceBreakdown,
 } from '../shared/schema';
-import { fromZonedTime } from 'date-fns-tz';
-import { addMinutes, isBefore, subHours, parseISO, format } from 'date-fns';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { addMinutes, isBefore, subHours, parseISO, format, subDays, startOfDay, endOfDay, startOfMonth, startOfYear } from 'date-fns';
 
 const router = express.Router();
 const JWT_SECRET = process.env.SESSION_SECRET;
@@ -96,8 +102,26 @@ router.post('/api/auth/login', authLimiter, async (req: Request, res: Response) 
 
     await createAuditLog(user.id, user.role, 'login', 'user', user.id, null, req);
 
+    // Check if user has an associated Barber record
+    const barber = await prisma.barber.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    // Calculate accessible roles
+    const accessibleRoles: ('ADMIN' | 'BARBER' | 'CLIENT')[] = [user.role as 'ADMIN' | 'BARBER' | 'CLIENT'];
+    if (user.role === 'ADMIN' && barber) {
+      accessibleRoles.push('BARBER');
+    }
+
     const response: AuthResponse = {
-      user: { id: user.id, email: user.email, role: user.role as 'ADMIN' | 'BARBER' | 'CLIENT' },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role as 'ADMIN' | 'BARBER' | 'CLIENT',
+        barberId: barber?.id,
+        accessibleRoles,
+      },
     };
 
     res.json(response);
@@ -151,8 +175,16 @@ router.post('/api/auth/register', authLimiter, async (req: Request, res: Respons
 
     await createAuditLog(user.id, user.role, 'register', 'user', user.id, null, req);
 
+    // New users won't have barber records, so accessibleRoles is just their role
+    const accessibleRoles: ('ADMIN' | 'BARBER' | 'CLIENT')[] = [user.role as 'ADMIN' | 'BARBER' | 'CLIENT'];
+
     const response: AuthResponse = {
-      user: { id: user.id, email: user.email, role: user.role as 'ADMIN' | 'BARBER' | 'CLIENT' },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role as 'ADMIN' | 'BARBER' | 'CLIENT',
+        accessibleRoles,
+      },
     };
 
     res.json(response);
@@ -168,6 +200,7 @@ router.get('/api/auth/me', authMiddleware, async (req: AuthRequest, res: Respons
       return res.status(401).json({ error: 'No autenticado' });
     }
 
+    // req.user already has barberId and accessibleRoles populated by authMiddleware
     const response: AuthResponse = {
       user: req.user,
     };
@@ -522,42 +555,139 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
 router.get(
   '/api/barber/stats',
   authMiddleware,
-  requireRole('BARBER'),
+  requireBarberAccess(),
   async (req: AuthRequest, res: Response) => {
     try {
-      // Find barber by user ID
-      const barber = await prisma.barber.findUnique({
-        where: { userId: req.user!.id },
-      });
+      // Parse and validate query params
+      const queryParams = barberStatsQuerySchema.parse(req.query);
+      
+      // For ADMIN users acting as barbers, use barberId from req.user
+      // For regular BARBER users, query by userId
+      let barber;
+      if (req.user!.role === 'ADMIN' && req.user!.barberId) {
+        barber = await prisma.barber.findUnique({
+          where: { id: req.user!.barberId },
+        });
+      } else {
+        barber = await prisma.barber.findUnique({
+          where: { userId: req.user!.id },
+        });
+      }
 
       if (!barber) {
         return res.status(404).json({ error: 'Barbero no encontrado' });
       }
 
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      const [appointmentsToday, appointmentsTotal] = await Promise.all([
-        prisma.appointment.count({
-          where: {
-            barberId: barber.id,
-            startDateTime: { gte: startOfToday },
-            status: { in: ['agendado', 'reagendado'] },
-          },
-        }),
-        prisma.appointment.count({
-          where: {
-            barberId: barber.id,
-            status: { in: ['agendado', 'reagendado'] },
-          },
-        }),
-      ]);
-
-      res.json({
-        appointmentsToday,
-        appointmentsTotal,
-        barberName: barber.name,
+      // Get current time in Bogota timezone
+      const nowInBogota = toZonedTime(new Date(), TIMEZONE);
+      
+      // Default to last 7 days if not provided
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (queryParams.startDate && queryParams.endDate) {
+        // Parse provided dates and convert to Bogota timezone
+        startDate = fromZonedTime(startOfDay(parseISO(queryParams.startDate)), TIMEZONE);
+        endDate = fromZonedTime(endOfDay(parseISO(queryParams.endDate)), TIMEZONE);
+      } else {
+        // Default to last 7 days
+        startDate = fromZonedTime(startOfDay(subDays(nowInBogota, 6)), TIMEZONE);
+        endDate = fromZonedTime(endOfDay(nowInBogota), TIMEZONE);
+      }
+      
+      // Calculate startOfToday for "Citas Hoy"
+      const startOfToday = fromZonedTime(startOfDay(nowInBogota), TIMEZONE);
+      
+      // Fetch appointments in the date range with services
+      const appointmentsInRange = await prisma.appointment.findMany({
+        where: {
+          barberId: barber.id,
+          startDateTime: { gte: startDate, lte: endDate },
+          status: { in: ['agendado', 'reagendado', 'completado'] },
+        },
+        include: {
+          service: true,
+        },
+        orderBy: {
+          startDateTime: 'asc',
+        },
       });
+      
+      // Calculate stats for the range
+      const periodAppointments = appointmentsInRange.length;
+      const periodRevenueCOP = appointmentsInRange.reduce(
+        (sum, appt) => sum + appt.service.priceCOP,
+        0
+      );
+      
+      // Unique clients in period
+      const uniqueClientIds = new Set(appointmentsInRange.map(appt => appt.clientId));
+      const uniqueClientsInPeriod = uniqueClientIds.size;
+      
+      // Appointments today (independent of date range)
+      const appointmentsToday = await prisma.appointment.count({
+        where: {
+          barberId: barber.id,
+          startDateTime: { gte: startOfToday },
+          status: { in: ['agendado', 'reagendado'] },
+        },
+      });
+      
+      // Total appointments (all time)
+      const totalAppointments = await prisma.appointment.count({
+        where: {
+          barberId: barber.id,
+          status: { in: ['agendado', 'reagendado', 'completado'] },
+        },
+      });
+      
+      // Generate timeSeries by grouping appointments by date
+      const timeSeriesGrouped = appointmentsInRange.reduce((acc, appt) => {
+        const date = format(toZonedTime(appt.startDateTime, TIMEZONE), 'yyyy-MM-dd');
+        if (!acc[date]) {
+          acc[date] = { date, appointments: 0, revenueCOP: 0 };
+        }
+        acc[date].appointments += 1;
+        acc[date].revenueCOP += appt.service.priceCOP;
+        return acc;
+      }, {} as Record<string, BarberDashboardTimeSeriesPoint>);
+      
+      const timeSeries = Object.values(timeSeriesGrouped).sort((a, b) => 
+        a.date.localeCompare(b.date)
+      );
+      
+      // Generate serviceBreakdown by grouping appointments by service
+      const serviceBreakdownGrouped = appointmentsInRange.reduce((acc, appt) => {
+        const serviceId = appt.serviceId;
+        if (!acc[serviceId]) {
+          acc[serviceId] = {
+            serviceId,
+            serviceName: appt.service.name,
+            appointments: 0,
+            revenueCOP: 0,
+          };
+        }
+        acc[serviceId].appointments += 1;
+        acc[serviceId].revenueCOP += appt.service.priceCOP;
+        return acc;
+      }, {} as Record<string, ServiceBreakdown>);
+      
+      const serviceBreakdown = Object.values(serviceBreakdownGrouped).sort(
+        (a, b) => b.appointments - a.appointments
+      );
+      
+      const stats: BarberDashboardStats = {
+        barberName: barber.name,
+        periodAppointments,
+        periodRevenueCOP,
+        appointmentsToday,
+        totalAppointments,
+        uniqueClientsInPeriod,
+        timeSeries,
+        serviceBreakdown,
+      };
+
+      res.json(stats);
     } catch (error) {
       logger.error('Get barber stats error:', error);
       res.status(500).json({ error: 'Error al obtener estadísticas' });
@@ -568,13 +698,21 @@ router.get(
 router.get(
   '/api/barber/appointments',
   authMiddleware,
-  requireRole('BARBER'),
+  requireBarberAccess(),
   async (req: AuthRequest, res: Response) => {
     try {
-      // Find barber by user ID
-      const barber = await prisma.barber.findUnique({
-        where: { userId: req.user!.id },
-      });
+      // For ADMIN users acting as barbers, use barberId from req.user
+      // For regular BARBER users, query by userId
+      let barber;
+      if (req.user!.role === 'ADMIN' && req.user!.barberId) {
+        barber = await prisma.barber.findUnique({
+          where: { id: req.user!.barberId },
+        });
+      } else {
+        barber = await prisma.barber.findUnique({
+          where: { userId: req.user!.id },
+        });
+      }
 
       if (!barber) {
         return res.status(404).json({ error: 'Barbero no encontrado' });
@@ -632,7 +770,7 @@ router.get(
 router.patch(
   '/api/barber/appointments/:id',
   authMiddleware,
-  requireRole('BARBER'),
+  requireBarberAccess(),
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
@@ -642,10 +780,18 @@ router.patch(
         return res.status(400).json({ error: 'Estado inválido' });
       }
 
-      // Find barber
-      const barber = await prisma.barber.findUnique({
-        where: { userId: req.user!.id },
-      });
+      // For ADMIN users acting as barbers, use barberId from req.user
+      // For regular BARBER users, query by userId
+      let barber;
+      if (req.user!.role === 'ADMIN' && req.user!.barberId) {
+        barber = await prisma.barber.findUnique({
+          where: { id: req.user!.barberId },
+        });
+      } else {
+        barber = await prisma.barber.findUnique({
+          where: { userId: req.user!.id },
+        });
+      }
 
       if (!barber) {
         return res.status(404).json({ error: 'Barbero no encontrado' });
@@ -669,13 +815,14 @@ router.patch(
         data: { status },
       });
 
+      // Log with appropriate role (ADMIN if admin-barber, BARBER otherwise)
       await createAuditLog(
         req.user!.id,
-        'BARBER',
+        req.user!.role === 'ADMIN' ? 'ADMIN' : 'BARBER',
         'update',
         'appointment',
         id,
-        { status },
+        { status, actingAsBarber: req.user!.role === 'ADMIN' },
         req
       );
 
@@ -690,15 +837,25 @@ router.patch(
 router.patch(
   '/api/barber/profile',
   authMiddleware,
-  requireRole('BARBER'),
+  requireBarberAccess(),
   async (req: AuthRequest, res: Response) => {
     try {
       const data = updateBarberProfileSchema.parse(req.body);
 
-      const barber = await prisma.barber.findUnique({
-        where: { userId: req.user!.id },
-        include: { user: true },
-      });
+      // For ADMIN users acting as barbers, use barberId from req.user
+      // For regular BARBER users, query by userId
+      let barber;
+      if (req.user!.role === 'ADMIN' && req.user!.barberId) {
+        barber = await prisma.barber.findUnique({
+          where: { id: req.user!.barberId },
+          include: { user: true },
+        });
+      } else {
+        barber = await prisma.barber.findUnique({
+          where: { userId: req.user!.id },
+          include: { user: true },
+        });
+      }
 
       if (!barber) {
         return res.status(404).json({ error: 'Barbero no encontrado' });
@@ -760,13 +917,14 @@ router.patch(
         }
       });
 
+      // Log with appropriate role (ADMIN if admin-barber, BARBER otherwise)
       await createAuditLog(
         req.user!.id,
-        'BARBER',
+        req.user!.role === 'ADMIN' ? 'ADMIN' : 'BARBER',
         'update',
         'user',
         req.user!.id,
-        { profileUpdate: true },
+        { profileUpdate: true, actingAsBarber: req.user!.role === 'ADMIN' },
         req
       );
 
@@ -1017,66 +1175,85 @@ router.get(
   requireRole('ADMIN'),
   async (req: AuthRequest, res: Response) => {
     try {
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const [
-        totalAppointments,
-        appointmentsToday,
-        appointmentsThisWeek,
-        appointmentsThisMonth,
-        totalClients,
-      ] = await Promise.all([
-        prisma.appointment.count(),
-        prisma.appointment.count({
-          where: {
-            startDateTime: { gte: startOfToday },
-            status: { in: ['agendado', 'reagendado'] },
-          },
-        }),
-        prisma.appointment.count({
-          where: {
-            startDateTime: { gte: startOfWeek },
-            status: { in: ['agendado', 'reagendado'] },
-          },
-        }),
-        prisma.appointment.count({
-          where: {
-            startDateTime: { gte: startOfMonth },
-            status: { in: ['agendado', 'reagendado'] },
-          },
-        }),
-        prisma.client.count(),
-      ]);
-
-      const appointmentsWithServices = await prisma.appointment.findMany({
+      // Parse and validate query params
+      const queryParams = adminStatsQuerySchema.parse(req.query);
+      
+      // Get current time in Bogota timezone
+      const nowInBogota = toZonedTime(new Date(), TIMEZONE);
+      
+      // Default to last 7 days if not provided
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (queryParams.startDate && queryParams.endDate) {
+        // Parse provided dates and convert to Bogota timezone
+        startDate = fromZonedTime(startOfDay(parseISO(queryParams.startDate)), TIMEZONE);
+        endDate = fromZonedTime(endOfDay(parseISO(queryParams.endDate)), TIMEZONE);
+      } else {
+        // Default to last 7 days
+        startDate = fromZonedTime(startOfDay(subDays(nowInBogota, 6)), TIMEZONE);
+        endDate = fromZonedTime(endOfDay(nowInBogota), TIMEZONE);
+      }
+      
+      // Calculate startOfToday for "Citas Hoy"
+      const startOfToday = fromZonedTime(startOfDay(nowInBogota), TIMEZONE);
+      
+      // Fetch appointments in the date range with services
+      const appointmentsInRange = await prisma.appointment.findMany({
         where: {
-          status: { in: ['agendado', 'reagendado'] },
+          startDateTime: { gte: startDate, lte: endDate },
+          status: { in: ['agendado', 'reagendado', 'completado'] },
         },
         include: {
           service: true,
         },
+        orderBy: {
+          startDateTime: 'asc',
+        },
       });
-
-      const totalRevenueCOP = appointmentsWithServices.reduce(
+      
+      // Calculate stats for the range
+      const totalAppointments = appointmentsInRange.length;
+      const revenueThisMonth = appointmentsInRange.reduce(
         (sum, appt) => sum + appt.service.priceCOP,
         0
       );
-
-      const revenueThisMonth = appointmentsWithServices
-        .filter((appt) => appt.startDateTime >= startOfMonth)
-        .reduce((sum, appt) => sum + appt.service.priceCOP, 0);
-
+      
+      // Appointments today (independent of date range)
+      const appointmentsToday = await prisma.appointment.count({
+        where: {
+          startDateTime: { gte: startOfToday },
+          status: { in: ['agendado', 'reagendado'] },
+        },
+      });
+      
+      // Total clients (global, not filtered)
+      const totalClients = await prisma.client.count();
+      
+      // Generate timeSeries by grouping appointments by date
+      const grouped = appointmentsInRange.reduce((acc, appt) => {
+        const date = format(toZonedTime(appt.startDateTime, TIMEZONE), 'yyyy-MM-dd');
+        if (!acc[date]) {
+          acc[date] = { date, appointments: 0, revenueCOP: 0 };
+        }
+        acc[date].appointments += 1;
+        acc[date].revenueCOP += appt.service.priceCOP;
+        return acc;
+      }, {} as Record<string, DashboardTimeSeriesPoint>);
+      
+      const timeSeries = Object.values(grouped).sort((a, b) => 
+        a.date.localeCompare(b.date)
+      );
+      
       const stats: DashboardStats = {
         totalAppointments,
         appointmentsToday,
-        appointmentsThisWeek,
-        appointmentsThisMonth,
+        appointmentsThisWeek: 0, // Deprecated, kept for compatibility
+        appointmentsThisMonth: 0, // Deprecated, kept for compatibility
         totalClients,
-        totalRevenueCOP,
+        totalRevenueCOP: 0, // Deprecated, kept for compatibility
         revenueThisMonth,
+        timeSeries,
       };
 
       res.json(stats);
