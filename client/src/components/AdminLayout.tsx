@@ -21,6 +21,7 @@ import {
   Calendar,
   Settings,
   LogOut,
+  User,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -34,6 +35,7 @@ const menuItems = [
   { title: 'Clientes', url: '/admin/clients', icon: UserCircle },
   { title: 'Citas', url: '/admin/appointments', icon: Calendar },
   { title: 'Configuración', url: '/admin/settings', icon: Settings },
+  { title: 'Mi Perfil', url: '/admin/profile', icon: User },
 ];
 
 interface AdminLayoutProps {

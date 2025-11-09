@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogIn } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBookingStore } from '@/lib/store';
 import BookingProgress from '@/components/BookingProgress';
 import ServiceSelection from '@/components/ServiceSelection';
@@ -11,11 +12,13 @@ import DateTimeSelection from '@/components/DateTimeSelection';
 import ClientForm, { type ClientFormOutput } from '@/components/ClientForm';
 import BookingReview from '@/components/BookingReview';
 import AppointmentConfirmation from './AppointmentConfirmation';
-import type { Service } from '@shared/schema';
+import AuthDialog from '@/components/AuthDialog';
+import type { Service, AuthResponse } from '@shared/schema';
 
 export default function BookingFlow() {
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   const {
     currentStep,
@@ -34,9 +37,21 @@ export default function BookingFlow() {
     reset,
   } = useBookingStore();
 
+  const { data: authData } = useQuery<AuthResponse>({
+    queryKey: ['/api/auth/me'],
+    retry: false,
+  });
+
+  const { data: clientStats, isLoading: clientStatsLoading } = useQuery({
+    queryKey: ['/api/client/stats'],
+    enabled: !!authData && authData.user.role === 'CLIENT',
+  });
+
   const { data: services = [], isLoading: servicesLoading } = useQuery<Service[]>({
     queryKey: ['/api/services'],
   });
+
+  const isAuthenticated = !!authData && authData.user.role === 'CLIENT';
 
   const handleClientFormSubmit = (data: ClientFormOutput) => {
     setClientData({
@@ -61,6 +76,30 @@ export default function BookingFlow() {
 
   const canProceedFromStep1 = selectedService && selectedBarber;
   const canProceedFromStep2 = selectedDate && selectedTime;
+
+  const getInitialFormData = () => {
+    if (isAuthenticated && clientStats && !clientData.fullName) {
+      const statsData = clientStats as any;
+      const phoneWithoutCountryCode = statsData.phoneE164?.replace('+57', '').trim() || '';
+      const emailFromAuth = authData?.user.email || '';
+      
+      return {
+        fullName: statsData.clientName || '',
+        countryCode: '+57' as const,
+        phone: phoneWithoutCountryCode,
+        email: emailFromAuth,
+        notes: '',
+      };
+    }
+    
+    return {
+      fullName: clientData.fullName,
+      countryCode: '+57' as const,
+      phone: clientData.phoneE164.replace('+57', '').trim(),
+      email: clientData.email,
+      notes: clientData.notes,
+    };
+  };
 
   if (showConfirmation && appointmentId) {
     return (
@@ -156,17 +195,48 @@ export default function BookingFlow() {
           )}
 
           {currentStep === 3 && selectedService && selectedBarber && selectedDate && selectedTime && (
-            <div>
-              <ClientForm
-                initialData={{
-                  fullName: clientData.fullName,
-                  countryCode: '+57',
-                  phone: clientData.phoneE164.replace('+57', '').trim(),
-                  email: clientData.email,
-                  notes: clientData.notes,
-                }}
-                onSubmit={handleClientFormSubmit}
-              />
+            <div className="space-y-6">
+              {!isAuthenticated && (
+                <Card data-testid="card-login-prompt">
+                  <CardHeader>
+                    <CardTitle>¿Ya tienes una cuenta?</CardTitle>
+                    <CardDescription>
+                      Inicia sesión para completar automáticamente tus datos
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="default"
+                      onClick={() => setShowAuthDialog(true)}
+                      data-testid="button-open-login"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Iniciar Sesión
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {}}
+                      data-testid="button-continue-without-login"
+                    >
+                      Continuar sin iniciar sesión
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {clientStatsLoading && isAuthenticated ? (
+                <div className="space-y-4" data-testid="skeleton-client-form">
+                  <Skeleton className="h-8 w-64" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : (
+                <ClientForm
+                  initialData={getInitialFormData()}
+                  onSubmit={handleClientFormSubmit}
+                />
+              )}
             </div>
           )}
 
@@ -184,6 +254,12 @@ export default function BookingFlow() {
           )}
         </div>
       </div>
+
+      <AuthDialog
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        initialMode="login"
+      />
     </div>
   );
 }

@@ -15,7 +15,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Calendar, LayoutDashboard } from 'lucide-react';
+import { Calendar, LayoutDashboard, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 const menuItems = [
   { title: 'Dashboard', url: '/barber', icon: LayoutDashboard },
   { title: 'Mis Citas', url: '/barber/appointments', icon: Calendar },
+  { title: 'Mi Perfil', url: '/barber/profile', icon: User },
 ];
 
 interface BarberLayoutProps {
