@@ -156,29 +156,30 @@ export default function BookingFlow() {
           )}
 
           {currentStep === 3 && selectedService && selectedBarber && selectedDate && selectedTime && (
-            <div className="grid lg:grid-cols-2 gap-8">
-              <div>
-                <ClientForm
-                  initialData={{
-                    fullName: clientData.fullName,
-                    countryCode: '+57',
-                    phone: clientData.phoneE164.replace('+57', '').trim(),
-                    email: clientData.email,
-                    notes: clientData.notes,
-                  }}
-                  onSubmit={handleClientFormSubmit}
-                />
-              </div>
-              <div>
-                <BookingReview
-                  service={selectedService}
-                  barber={selectedBarber}
-                  date={selectedDate}
-                  time={selectedTime}
-                  clientData={clientData}
-                  onSuccess={handleAppointmentConfirmed}
-                />
-              </div>
+            <div>
+              <ClientForm
+                initialData={{
+                  fullName: clientData.fullName,
+                  countryCode: '+57',
+                  phone: clientData.phoneE164.replace('+57', '').trim(),
+                  email: clientData.email,
+                  notes: clientData.notes,
+                }}
+                onSubmit={handleClientFormSubmit}
+              />
+            </div>
+          )}
+
+          {currentStep === 4 && selectedService && selectedBarber && selectedDate && selectedTime && clientData.fullName && (
+            <div className="max-w-2xl mx-auto">
+              <BookingReview
+                service={selectedService}
+                barber={selectedBarber}
+                date={selectedDate}
+                time={selectedTime}
+                clientData={clientData}
+                onSuccess={handleAppointmentConfirmed}
+              />
             </div>
           )}
         </div>

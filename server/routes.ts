@@ -39,16 +39,23 @@ if (!JWT_SECRET) {
 }
 const TIMEZONE = 'America/Bogota';
 
-// Rate limiters
+// Rate limiters - configured for Replit's proxy
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
   message: 'Demasiados intentos. Por favor intente más tarde.',
+  // Trust Replit's X-Forwarded-For header without validation warning
+  validate: { trustProxy: false },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  validate: { trustProxy: false },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // ============ AUTH ROUTES ============
