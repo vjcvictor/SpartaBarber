@@ -2,8 +2,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import { setupVite, serveStatic, log } from "./vite";
 import routes from "./routes";
+import { csrfProtection } from "./middleware/csrf";
 
 const app = express();
+app.set('trust proxy', true); // Fix for Replit's X-Forwarded-For headers
 app.use(cookieParser());
 
 declare module 'http' {
@@ -49,6 +51,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // CSRF protection for all routes
+  app.use(csrfProtection);
+  
   // Register API routes
   app.use(routes);
 

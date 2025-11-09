@@ -13,7 +13,7 @@ interface BarberSelectionProps {
 
 export default function BarberSelection({ serviceId, selectedBarber, onSelect }: BarberSelectionProps) {
   const { data: barbers = [], isLoading } = useQuery<Barber[]>({
-    queryKey: ['/api/barbers', serviceId],
+    queryKey: ['/api/barbers', { serviceId }],
     enabled: !!serviceId,
   });
 

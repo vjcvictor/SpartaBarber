@@ -144,7 +144,14 @@ export default function Services() {
   function handleDialogClose() {
     setIsDialogOpen(false);
     setEditingService(null);
-    form.reset();
+    form.reset({
+      name: '',
+      icon: '',
+      priceCOP: 0,
+      description: '',
+      durationMin: 30,
+      active: true,
+    });
   }
 
   function onSubmit(data: CreateServiceInput) {

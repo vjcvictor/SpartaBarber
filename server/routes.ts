@@ -33,7 +33,10 @@ import { fromZonedTime } from 'date-fns-tz';
 import { addMinutes, isBefore, subHours, parseISO } from 'date-fns';
 
 const router = express.Router();
-const JWT_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.SESSION_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: SESSION_SECRET environment variable is required for JWT security');
+}
 const TIMEZONE = 'America/Bogota';
 
 // Rate limiters

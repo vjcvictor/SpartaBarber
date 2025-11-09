@@ -32,13 +32,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { createBarberSchema, updateBarberSchema, type Service } from '@shared/schema';
+import { createBarberSchema, updateBarberSchema, type Service, type WeeklySchedule } from '@shared/schema';
 import type { CreateBarberInput, UpdateBarberInput } from '@shared/schema';
+import WeeklyScheduleEditor from '@/components/WeeklyScheduleEditor';
 
 interface BarberResponse {
   id: string;
@@ -46,10 +46,28 @@ interface BarberResponse {
   name: string;
   email: string;
   photoUrl: string | null;
-  weeklySchedule: any;
+  weeklySchedule: WeeklySchedule[];
   exceptions: any;
   services: string[];
 }
+
+interface BarberFormData {
+  name: string;
+  email: string;
+  password?: string;
+  photoUrl?: string;
+  weeklySchedule: WeeklySchedule[];
+  services: string[];
+}
+
+const DEFAULT_SCHEDULE: WeeklySchedule[] = [
+  { dayOfWeek: 1, start: '09:00', end: '17:00', breaks: [] },
+  { dayOfWeek: 2, start: '09:00', end: '17:00', breaks: [] },
+  { dayOfWeek: 3, start: '09:00', end: '17:00', breaks: [] },
+  { dayOfWeek: 4, start: '09:00', end: '17:00', breaks: [] },
+  { dayOfWeek: 5, start: '09:00', end: '17:00', breaks: [] },
+  { dayOfWeek: 6, start: '09:00', end: '14:00', breaks: [] },
+];
 
 export default function Barbers() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -64,21 +82,13 @@ export default function Barbers() {
     queryKey: ['/api/admin/services'],
   });
 
-  const form = useForm<CreateBarberInput | UpdateBarberInput>({
-    resolver: zodResolver(editingBarber ? updateBarberSchema : createBarberSchema),
+  const form = useForm<BarberFormData>({
     defaultValues: {
       name: '',
       email: '',
       password: '',
       photoUrl: '',
-      weeklySchedule: JSON.stringify([
-        { dayOfWeek: 1, start: '09:00', end: '17:00', breaks: [] },
-        { dayOfWeek: 2, start: '09:00', end: '17:00', breaks: [] },
-        { dayOfWeek: 3, start: '09:00', end: '17:00', breaks: [] },
-        { dayOfWeek: 4, start: '09:00', end: '17:00', breaks: [] },
-        { dayOfWeek: 5, start: '09:00', end: '17:00', breaks: [] },
-        { dayOfWeek: 6, start: '09:00', end: '14:00', breaks: [] },
-      ], null, 2),
+      weeklySchedule: DEFAULT_SCHEDULE,
       services: [],
     },
   });
@@ -156,8 +166,9 @@ export default function Barbers() {
     form.reset({
       name: barber.name,
       email: barber.email,
+      password: '',
       photoUrl: barber.photoUrl || '',
-      weeklySchedule: JSON.stringify(barber.weeklySchedule, null, 2),
+      weeklySchedule: barber.weeklySchedule,
       services: barber.services,
     });
     setIsDialogOpen(true);
@@ -166,24 +177,52 @@ export default function Barbers() {
   function handleDialogClose() {
     setIsDialogOpen(false);
     setEditingBarber(null);
-    form.reset();
+    form.reset({
+      name: '',
+      email: '',
+      password: '',
+      photoUrl: '',
+      weeklySchedule: DEFAULT_SCHEDULE,
+      services: [],
+    });
   }
 
-  function onSubmit(data: any) {
+  function onSubmit(data: BarberFormData) {
+    const payload = {
+      ...data,
+      weeklySchedule: JSON.stringify(data.weeklySchedule),
+    };
+
     if (editingBarber) {
       const updateData: UpdateBarberInput = {
-        name: data.name,
-        email: data.email,
-        photoUrl: data.photoUrl,
-        weeklySchedule: data.weeklySchedule,
-        services: data.services,
+        name: payload.name,
+        email: payload.email,
+        photoUrl: payload.photoUrl,
+        weeklySchedule: payload.weeklySchedule,
+        services: payload.services,
       };
       if (data.password) {
         updateData.password = data.password;
       }
       updateMutation.mutate({ id: editingBarber.id, data: updateData });
     } else {
-      createMutation.mutate(data as CreateBarberInput);
+      if (!payload.password) {
+        toast({
+          title: 'Error',
+          description: 'La contraseña es requerida para crear un barbero',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const createData: CreateBarberInput = {
+        name: payload.name,
+        email: payload.email,
+        password: payload.password,
+        photoUrl: payload.photoUrl,
+        weeklySchedule: payload.weeklySchedule,
+        services: payload.services,
+      };
+      createMutation.mutate(createData);
     }
   }
 
@@ -276,9 +315,11 @@ export default function Barbers() {
                     name="weeklySchedule"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Horario Semanal (JSON)</FormLabel>
                         <FormControl>
-                          <Textarea {...field} rows={8} className="font-mono text-xs" data-testid="input-barber-schedule" />
+                          <WeeklyScheduleEditor
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

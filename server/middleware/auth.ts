@@ -3,7 +3,11 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import logger from '../lib/logger';
 
-const JWT_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+// JWT_SECRET is REQUIRED - fail fast if not configured
+const JWT_SECRET = process.env.SESSION_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: SESSION_SECRET environment variable is required for JWT security');
+}
 
 export interface AuthRequest extends Request {
   user?: {
@@ -25,7 +29,7 @@ export async function authMiddleware(
       return res.status(401).json({ error: 'No autenticado' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = jwt.verify(token, JWT_SECRET!) as {
       userId: string;
       email: string;
       role: string;
