@@ -80,7 +80,7 @@ export interface Appointment {
 export const createAppointmentSchema = z.object({
   serviceId: z.string().uuid(),
   barberId: z.string().uuid(),
-  startDateTime: z.string().datetime(),
+  startDateTime: z.string().datetime({ offset: true }),
   clientData: z.object({
     fullName: z.string().min(2),
     phoneE164: z.string(),
@@ -92,7 +92,7 @@ export const createAppointmentSchema = z.object({
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
 export const rescheduleAppointmentSchema = z.object({
-  newStartDateTime: z.string().datetime(),
+  newStartDateTime: z.string().datetime({ offset: true }),
   newBarberId: z.string().uuid().optional(),
 });
 

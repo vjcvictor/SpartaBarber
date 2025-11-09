@@ -174,17 +174,21 @@ export default function Barbers() {
     setIsDialogOpen(true);
   }
 
-  function handleDialogClose() {
-    setIsDialogOpen(false);
-    setEditingBarber(null);
-    form.reset({
-      name: '',
-      email: '',
-      password: '',
-      photoUrl: '',
-      weeklySchedule: DEFAULT_SCHEDULE,
-      services: [],
-    });
+  function handleDialogClose(open: boolean) {
+    if (!open) {
+      setIsDialogOpen(false);
+      setEditingBarber(null);
+      form.reset({
+        name: '',
+        email: '',
+        password: '',
+        photoUrl: '',
+        weeklySchedule: DEFAULT_SCHEDULE,
+        services: [],
+      });
+    } else {
+      setIsDialogOpen(true);
+    }
   }
 
   function onSubmit(data: BarberFormData) {
@@ -370,7 +374,7 @@ export default function Barbers() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleDialogClose}
+                      onClick={() => handleDialogClose(false)}
                       data-testid="button-cancel"
                     >
                       Cancelar

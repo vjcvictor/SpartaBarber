@@ -30,7 +30,7 @@ import {
   type AdminConfig,
 } from '../shared/schema';
 import { fromZonedTime } from 'date-fns-tz';
-import { addMinutes, isBefore, subHours, parseISO } from 'date-fns';
+import { addMinutes, isBefore, subHours, parseISO, format } from 'date-fns';
 
 const router = express.Router();
 const JWT_SECRET = process.env.SESSION_SECRET;
@@ -337,31 +337,18 @@ router.post('/api/appointments', apiLimiter, async (req: Request, res: Response)
     const startDate = parseISO(startDateTime);
     const endDate = addMinutes(startDate, service.durationMin);
 
-    // Check availability (simplified - should use calculateAvailableSlots)
-    const conflictingAppointment = await prisma.appointment.findFirst({
-      where: {
-        barberId,
-        status: {
-          in: ['agendado', 'reagendado'],
-        },
-        OR: [
-          {
-            AND: [
-              { startDateTime: { lte: startDate } },
-              { endDateTime: { gt: startDate } },
-            ],
-          },
-          {
-            AND: [
-              { startDateTime: { lt: endDate } },
-              { endDateTime: { gte: endDate } },
-            ],
-          },
-        ],
-      },
-    });
-
-    if (conflictingAppointment) {
+    // Check availability using the same logic as the availability endpoint
+    const dateStr = format(startDate, 'yyyy-MM-dd');
+    const availableSlots = await calculateAvailableSlots(serviceId, barberId, dateStr);
+    const requestedTime = format(startDate, 'HH:mm');
+    
+    if (!availableSlots.includes(requestedTime)) {
+      logger.warn('Slot not available', { 
+        barberId, 
+        startDate: startDate.toISOString(), 
+        requestedTime,
+        availableSlots 
+      });
       return res.status(400).json({ error: 'El horario seleccionado ya no está disponible' });
     }
 

@@ -141,17 +141,21 @@ export default function Services() {
     setIsDialogOpen(true);
   }
 
-  function handleDialogClose() {
-    setIsDialogOpen(false);
-    setEditingService(null);
-    form.reset({
-      name: '',
-      icon: '',
-      priceCOP: 0,
-      description: '',
-      durationMin: 30,
-      active: true,
-    });
+  function handleDialogClose(open: boolean) {
+    if (!open) {
+      setIsDialogOpen(false);
+      setEditingService(null);
+      form.reset({
+        name: '',
+        icon: '',
+        priceCOP: 0,
+        description: '',
+        durationMin: 30,
+        active: true,
+      });
+    } else {
+      setIsDialogOpen(true);
+    }
   }
 
   function onSubmit(data: CreateServiceInput) {
@@ -287,7 +291,7 @@ export default function Services() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleDialogClose}
+                      onClick={() => handleDialogClose(false)}
                       data-testid="button-cancel"
                     >
                       Cancelar
