@@ -175,7 +175,7 @@ export default function AdminDashboard() {
                   <DollarSign className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Ingresos en el período (COP)</p>
+                  <p className="text-sm text-muted-foreground">Ingresos en el período</p>
                   <p className="text-2xl font-bold" data-testid="text-revenue">
                     ${stats.revenueThisMonth.toLocaleString('es-CO')}
                   </p>

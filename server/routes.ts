@@ -905,7 +905,7 @@ router.patch(
       const { id } = req.params;
       const { status } = req.body;
 
-      if (!['agendado', 'cancelado', 'reagendado'].includes(status)) {
+      if (!['agendado', 'cancelado', 'reagendado', 'completado'].includes(status)) {
         return res.status(400).json({ error: 'Estado inválido' });
       }
 
@@ -937,6 +937,20 @@ router.patch(
 
       if (appointment.barberId !== barber.id) {
         return res.status(403).json({ error: 'No tienes permiso para modificar esta cita' });
+      }
+
+      // Validate 1-hour restriction for status changes
+      // Only apply if changing status and NOT marking as 'completado'
+      if (status !== 'completado' && status !== appointment.status) {
+        const now = new Date();
+        const appointmentTime = appointment.startDateTime;
+        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+        if (isBefore(appointmentTime, oneHourFromNow)) {
+          return res.status(400).json({
+            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
+          });
+        }
       }
 
       const updated = await prisma.appointment.update({

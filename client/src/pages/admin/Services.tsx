@@ -225,7 +225,7 @@ export default function Services() {
                     name="priceCOP"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Precio (COP)</FormLabel>
+                        <FormLabel>Precio</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -323,7 +323,7 @@ export default function Services() {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Icono</TableHead>
-                  <TableHead>Precio (COP)</TableHead>
+                  <TableHead>Precio</TableHead>
                   <TableHead>Duración (min)</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
