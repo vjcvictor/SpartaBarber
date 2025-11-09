@@ -44,6 +44,7 @@ export default function BarberLayout({ children }: BarberLayoutProps) {
       await apiRequest('POST', '/api/auth/logout');
     },
     onSuccess: () => {
+      queryClient.setQueryData(['/api/auth/me'], null);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       setLocation('/');
       toast({

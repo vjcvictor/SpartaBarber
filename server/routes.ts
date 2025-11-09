@@ -19,6 +19,10 @@ import {
   createBarberSchema,
   updateBarberSchema,
   updateConfigSchema,
+  updateAdminProfileSchema,
+  updateBarberProfileSchema,
+  updateClientProfileSchema,
+  weeklyScheduleSchema,
   type AuthResponse,
   type Service,
   type Barber,
@@ -683,6 +687,101 @@ router.patch(
   }
 );
 
+router.patch(
+  '/api/barber/profile',
+  authMiddleware,
+  requireRole('BARBER'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const data = updateBarberProfileSchema.parse(req.body);
+
+      const barber = await prisma.barber.findUnique({
+        where: { userId: req.user!.id },
+        include: { user: true },
+      });
+
+      if (!barber) {
+        return res.status(404).json({ error: 'Barbero no encontrado' });
+      }
+
+      if (data.newPassword) {
+        if (!data.currentPassword) {
+          return res.status(400).json({ error: 'Debe proporcionar la contraseña actual' });
+        }
+
+        const validPassword = await bcrypt.compare(data.currentPassword, barber.user.passwordHash);
+        if (!validPassword) {
+          return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+        }
+      }
+
+      if (data.email && data.email !== barber.user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+
+        if (existingUser) {
+          return res.status(400).json({ error: 'El email ya está en uso' });
+        }
+      }
+
+      if (data.weeklySchedule) {
+        try {
+          const parsedSchedule = JSON.parse(data.weeklySchedule);
+          weeklyScheduleSchema.parse(parsedSchedule);
+        } catch (error) {
+          return res.status(400).json({ error: 'Horario semanal inválido' });
+        }
+      }
+
+      const shouldClearToken = !!(data.newPassword || (data.email && data.email !== barber.user.email));
+
+      await prisma.$transaction(async (tx) => {
+        const userUpdate: any = {};
+        if (data.email) userUpdate.email = data.email;
+        if (data.newPassword) userUpdate.passwordHash = await bcrypt.hash(data.newPassword, 10);
+
+        if (Object.keys(userUpdate).length > 0) {
+          await tx.user.update({
+            where: { id: req.user!.id },
+            data: userUpdate,
+          });
+        }
+
+        const barberUpdate: any = {};
+        if (data.name) barberUpdate.name = data.name;
+        if (data.weeklySchedule) barberUpdate.weeklySchedule = data.weeklySchedule;
+
+        if (Object.keys(barberUpdate).length > 0) {
+          await tx.barber.update({
+            where: { id: barber.id },
+            data: barberUpdate,
+          });
+        }
+      });
+
+      await createAuditLog(
+        req.user!.id,
+        'BARBER',
+        'update',
+        'user',
+        req.user!.id,
+        { profileUpdate: true },
+        req
+      );
+
+      if (shouldClearToken) {
+        res.clearCookie('authToken', { httpOnly: true, sameSite: 'lax' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Update barber profile error:', error);
+      res.status(500).json({ error: 'Error al actualizar perfil' });
+    }
+  }
+);
+
 // ============ CLIENT ROUTES ============
 
 router.get(
@@ -808,6 +907,108 @@ router.get(
   }
 );
 
+router.patch(
+  '/api/client/profile',
+  authMiddleware,
+  requireRole('CLIENT'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const data = updateClientProfileSchema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      const client = await prisma.client.findUnique({
+        where: { email: user.email },
+      });
+
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      if (data.newPassword) {
+        if (!data.currentPassword) {
+          return res.status(400).json({ error: 'Debe proporcionar la contraseña actual' });
+        }
+
+        const validPassword = await bcrypt.compare(data.currentPassword, user.passwordHash);
+        if (!validPassword) {
+          return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+        }
+      }
+
+      if (data.email && data.email !== user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+
+        if (existingUser) {
+          return res.status(400).json({ error: 'El email ya está en uso' });
+        }
+
+        const existingClient = await prisma.client.findUnique({
+          where: { email: data.email },
+        });
+
+        if (existingClient) {
+          return res.status(400).json({ error: 'El email ya está en uso' });
+        }
+      }
+
+      const shouldClearToken = !!(data.newPassword || (data.email && data.email !== user.email));
+
+      await prisma.$transaction(async (tx) => {
+        const userUpdate: any = {};
+        if (data.email) userUpdate.email = data.email;
+        if (data.newPassword) userUpdate.passwordHash = await bcrypt.hash(data.newPassword, 10);
+
+        if (Object.keys(userUpdate).length > 0) {
+          await tx.user.update({
+            where: { id: req.user!.id },
+            data: userUpdate,
+          });
+        }
+
+        const clientUpdate: any = {};
+        if (data.fullName) clientUpdate.fullName = data.fullName;
+        if (data.email) clientUpdate.email = data.email;
+        if (data.phoneE164) clientUpdate.phoneE164 = data.phoneE164;
+
+        if (Object.keys(clientUpdate).length > 0) {
+          await tx.client.update({
+            where: { id: client.id },
+            data: clientUpdate,
+          });
+        }
+      });
+
+      await createAuditLog(
+        req.user!.id,
+        'CLIENT',
+        'update',
+        'user',
+        req.user!.id,
+        { profileUpdate: true },
+        req
+      );
+
+      if (shouldClearToken) {
+        res.clearCookie('authToken', { httpOnly: true, sameSite: 'lax' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Update client profile error:', error);
+      res.status(500).json({ error: 'Error al actualizar perfil' });
+    }
+  }
+);
+
 // ============ ADMIN ROUTES ============
 
 router.get(
@@ -907,6 +1108,78 @@ router.get(
     } catch (error) {
       logger.error('Get admin appointments error:', error);
       res.status(500).json({ error: 'Error al obtener citas' });
+    }
+  }
+);
+
+router.patch(
+  '/api/admin/profile',
+  authMiddleware,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const data = updateAdminProfileSchema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      if (data.newPassword) {
+        if (!data.currentPassword) {
+          return res.status(400).json({ error: 'Debe proporcionar la contraseña actual' });
+        }
+
+        const validPassword = await bcrypt.compare(data.currentPassword, user.passwordHash);
+        if (!validPassword) {
+          return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+        }
+      }
+
+      if (data.email && data.email !== user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: data.email },
+        });
+
+        if (existingUser) {
+          return res.status(400).json({ error: 'El email ya está en uso' });
+        }
+      }
+
+      const shouldClearToken = !!(data.newPassword || (data.email && data.email !== user.email));
+
+      const userUpdate: any = {};
+      if (data.email) userUpdate.email = data.email;
+      if (data.newPassword) userUpdate.passwordHash = await bcrypt.hash(data.newPassword, 10);
+
+      if (Object.keys(userUpdate).length > 0) {
+        await prisma.user.update({
+          where: { id: req.user!.id },
+          data: userUpdate,
+        });
+      }
+
+      await createAuditLog(
+        req.user!.id,
+        'ADMIN',
+        'update',
+        'user',
+        req.user!.id,
+        { profileUpdate: true },
+        req
+      );
+
+      if (shouldClearToken) {
+        res.clearCookie('authToken', { httpOnly: true, sameSite: 'lax' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Update admin profile error:', error);
+      res.status(500).json({ error: 'Error al actualizar perfil' });
     }
   }
 );

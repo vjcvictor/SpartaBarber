@@ -44,6 +44,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       await apiRequest('POST', '/api/auth/logout');
     },
     onSuccess: () => {
+      queryClient.setQueryData(['/api/auth/me'], null);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       setLocation('/');
       toast({

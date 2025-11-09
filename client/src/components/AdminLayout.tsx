@@ -53,6 +53,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       await apiRequest('POST', '/api/auth/logout');
     },
     onSuccess: () => {
+      queryClient.setQueryData(['/api/auth/me'], null);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       setLocation('/');
       toast({

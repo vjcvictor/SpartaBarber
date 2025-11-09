@@ -29,6 +29,18 @@ export interface Service {
 }
 
 // Barber types
+export const weeklyScheduleItemSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  start: z.string().regex(/^\d{2}:\d{2}$/),
+  end: z.string().regex(/^\d{2}:\d{2}$/),
+  breaks: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/),
+    end: z.string().regex(/^\d{2}:\d{2}$/),
+  })),
+});
+
+export const weeklyScheduleSchema = z.array(weeklyScheduleItemSchema);
+
 export interface WeeklySchedule {
   dayOfWeek: number; // 0-6 (Sunday-Saturday)
   start: string; // "09:00"
@@ -215,3 +227,65 @@ export interface AdminConfig extends Config {
   whatsappFromNumber?: string;
   vapidPrivateKey?: string;
 }
+
+// Profile update schemas
+export const updateAdminProfileSchema = z.object({
+  email: z.string().email().optional(),
+  currentPassword: z.string().min(1).optional(),
+  newPassword: z.string().min(8).optional(),
+}).refine(
+  (data) => {
+    if (data.newPassword && !data.currentPassword) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Debe proporcionar la contraseña actual para cambiar la contraseña',
+    path: ['currentPassword'],
+  }
+);
+
+export type UpdateAdminProfileInput = z.infer<typeof updateAdminProfileSchema>;
+
+export const updateBarberProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  currentPassword: z.string().min(1).optional(),
+  newPassword: z.string().min(8).optional(),
+  weeklySchedule: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.newPassword && !data.currentPassword) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Debe proporcionar la contraseña actual para cambiar la contraseña',
+    path: ['currentPassword'],
+  }
+);
+
+export type UpdateBarberProfileInput = z.infer<typeof updateBarberProfileSchema>;
+
+export const updateClientProfileSchema = z.object({
+  fullName: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  phoneE164: z.string().min(10).optional(),
+  currentPassword: z.string().min(1).optional(),
+  newPassword: z.string().min(8).optional(),
+}).refine(
+  (data) => {
+    if (data.newPassword && !data.currentPassword) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Debe proporcionar la contraseña actual para cambiar la contraseña',
+    path: ['currentPassword'],
+  }
+);
+
+export type UpdateClientProfileInput = z.infer<typeof updateClientProfileSchema>;
