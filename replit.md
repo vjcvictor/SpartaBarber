@@ -189,3 +189,45 @@ Services in `server/services/notifications.ts`:
 **Testing**: All fixes verified with end-to-end Playwright tests covering booking flow, admin CRUD, and availability validation.
 
 **Architect Review**: Approved with recommendations for future hardening (use `formatInTimeZone`, investigate console NaN warnings, extend edge case coverage).
+
+### November 2025 - Barber and Client Panels
+
+**Feature Implementation:**
+
+1. **Barber Panel** (client/src/pages/barber/*, client/src/components/BarberLayout.tsx)
+   - **Dashboard** (/barber): Statistics (citas hoy, total citas, próxima cita) with real-time data from API
+   - **Appointments** (/barber/appointments): Complete appointment list with filters (agendado, cancelado, reagendado), pagination (10 per page), and actions (cancel/restore)
+   - **Layout**: Sidebar navigation with role-based access control (only BARBER role)
+   - **API Endpoints**: GET /api/barber/stats, GET /api/barber/appointments, PATCH /api/barber/appointments/:id
+
+2. **Client Panel** (client/src/pages/client/*, client/src/components/ClientLayout.tsx)
+   - **Dashboard** (/client): Statistics (próximas citas, total citas, próxima cita) with "Nueva Cita" button
+   - **Appointments** (/client/appointments): Appointment history with filters, ability to cancel appointments (up to 1 hour before scheduled time)
+   - **Layout**: Sidebar navigation with role-based access control (only CLIENT role)
+   - **API Endpoints**: GET /api/client/stats, GET /api/client/appointments
+
+3. **Home.tsx Integration**
+   - **Access Panel Button**: Role-based navigation button ("Mi Panel") that redirects to appropriate panel (ADMIN→/admin, BARBER→/barber, CLIENT→/client)
+   - **Dynamic Routing**: Intelligent redirection based on authenticated user's role
+
+4. **AuthDialog Fix** (client/src/components/AuthDialog.tsx)
+   - **Issue**: HTML5 email validation conflicting with Zod validation
+   - **Fix**: Removed `type="email"` attribute from Input, relying solely on Zod validation for consistency
+
+5. **Test Users Creation** (scripts/seed-test-users.ts)
+   - **Barber**: barbero@sparta.com / test123 (with weekly schedule Monday-Saturday)
+   - **Client**: cliente@sparta.com / test123 (with profile and phone)
+   - **Script**: Automated seeding script for development/testing environments
+
+**Security & Authorization:**
+- All barber endpoints verify `role === 'BARBER'` and filter by `req.user.barberId`
+- All client endpoints verify `role === 'CLIENT'` and filter by email match
+- Layouts implement client-side role checking with automatic redirection for unauthorized access
+- Backend enforces authorization with `authMiddleware` + `requireRole` middleware chain
+
+**Testing**:
+- E2E test for barber flow: login → dashboard → appointments → cancel/restore → logout (PASSED)
+- E2E test for client flow: login → dashboard → appointments → filters → logout (PASSED)
+- Coverage includes authentication, navigation, data display, mutations, and session management
+
+**Architect Review**: Approved after fixing sidebar navigation to remove non-existent /barber/profile and /client/profile routes. Implementation is secure, well-structured, and follows best practices for role-based access control.

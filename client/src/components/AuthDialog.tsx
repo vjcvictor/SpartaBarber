@@ -167,8 +167,8 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
                         placeholder="tu@email.com"
+                        autoComplete="email"
                         {...field}
                         data-testid="input-login-email"
                       />
@@ -245,8 +245,8 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input
-                        type="email"
                         placeholder="tu@email.com"
+                        autoComplete="email"
                         {...field}
                         data-testid="input-register-email"
                       />
