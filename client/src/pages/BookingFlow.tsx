@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, LogIn } from 'lucide-react';
+import { ChevronLeft, LogIn, UserPlus, Home } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBookingStore } from '@/lib/store';
@@ -19,6 +20,8 @@ export default function BookingFlow() {
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authDialogMode, setAuthDialogMode] = useState<'login' | 'register'>('login');
+  const [, setLocation] = useLocation();
 
   const {
     currentStep,
@@ -72,6 +75,7 @@ export default function BookingFlow() {
     reset();
     setAppointmentId(null);
     setShowConfirmation(false);
+    setLocation('/');
   };
 
   const canProceedFromStep1 = selectedService && selectedBarber;
@@ -116,17 +120,30 @@ export default function BookingFlow() {
         <BookingProgress currentStep={currentStep} />
         
         <div className="mt-8">
-          {currentStep > 1 && currentStep < 4 && (
-            <Button
-              variant="ghost"
-              onClick={goBack}
-              className="mb-6"
-              data-testid="button-back"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Atrás
-            </Button>
-          )}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              {currentStep > 1 && currentStep < 4 && (
+                <Button
+                  variant="ghost"
+                  onClick={goBack}
+                  data-testid="button-back"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Atrás
+                </Button>
+              )}
+            </div>
+            {currentStep === 3 && (
+              <Button
+                variant="outline"
+                onClick={handleBackToHome}
+                data-testid="button-back-to-home"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Volver a inicio
+              </Button>
+            )}
+          </div>
 
           {currentStep === 1 && (
             <div className="space-y-8">
@@ -201,17 +218,31 @@ export default function BookingFlow() {
                   <CardHeader>
                     <CardTitle>¿Ya tienes una cuenta?</CardTitle>
                     <CardDescription>
-                      Inicia sesión para completar automáticamente tus datos
+                      Inicia sesión para completar automáticamente tus datos o crea una cuenta nueva
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="default"
-                      onClick={() => setShowAuthDialog(true)}
+                      onClick={() => {
+                        setAuthDialogMode('login');
+                        setShowAuthDialog(true);
+                      }}
                       data-testid="button-open-login"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
                       Iniciar Sesión
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => {
+                        setAuthDialogMode('register');
+                        setShowAuthDialog(true);
+                      }}
+                      data-testid="button-open-register"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Registrarse
                     </Button>
                     <Button
                       variant="ghost"
@@ -258,7 +289,7 @@ export default function BookingFlow() {
       <AuthDialog
         open={showAuthDialog}
         onOpenChange={setShowAuthDialog}
-        initialMode="login"
+        initialMode={authDialogMode}
       />
     </div>
   );
