@@ -84,9 +84,7 @@ export default function DateTimeSelection({
   };
 
   const handleTimeSelect = (slot: TimeSlot) => {
-    if (slot.available) {
-      onTimeSelect(slot.startTime);
-    }
+    onTimeSelect(slot.startTime);
   };
 
   return (
@@ -162,11 +160,9 @@ export default function DateTimeSelection({
                 variant={selectedTime === slot.startTime ? 'default' : 'outline'}
                 className={cn(
                   "h-12",
-                  selectedTime === slot.startTime && "ring-2 ring-primary/50",
-                  !slot.available && "opacity-50 cursor-not-allowed"
+                  selectedTime === slot.startTime && "ring-2 ring-primary/50"
                 )}
                 onClick={() => handleTimeSelect(slot)}
-                disabled={!slot.available}
                 data-testid={`button-time-${slot.startTime.replace(':', '-')}`}
               >
                 {slot.startTime}

@@ -165,11 +165,14 @@ export async function calculateAvailableSlots(
       }
     }
 
-    slots.push({
-      startTime: format(currentSlot, 'HH:mm', { timeZone: TIMEZONE }),
-      endTime: format(slotEnd, 'HH:mm', { timeZone: TIMEZONE }),
-      available: !hasConflict,
-    });
+    // Only include available slots (skip occupied ones)
+    if (!hasConflict) {
+      slots.push({
+        startTime: format(currentSlot, 'HH:mm', { timeZone: TIMEZONE }),
+        endTime: format(slotEnd, 'HH:mm', { timeZone: TIMEZONE }),
+        available: true,
+      });
+    }
 
     // Move to next 15-min interval
     currentSlot = addMinutes(currentSlot, 15);
