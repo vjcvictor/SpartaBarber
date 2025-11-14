@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
-import { addMinutes, parse, isBefore, isAfter, isWithinInterval, parseISO } from 'date-fns';
+import { addMinutes, parse, isBefore, isAfter, isWithinInterval, parseISO, startOfDay as dateFnsStartOfDay } from 'date-fns';
 import type { WeeklySchedule, ScheduleException, TimeSlot } from '../../shared/schema';
 
 const TIMEZONE = 'America/Bogota';
@@ -92,6 +92,12 @@ export async function calculateAvailableSlots(
     },
   });
 
+  // Get current time in Colombia timezone
+  const nowInColombia = toZonedTime(new Date(), TIMEZONE);
+  const requestedDateStart = dateFnsStartOfDay(requestedDate);
+  const todayInColombia = dateFnsStartOfDay(nowInColombia);
+  const isToday = requestedDateStart.getTime() === todayInColombia.getTime();
+
   // Generate all possible time slots
   const slots: TimeSlot[] = [];
   const [startHour, startMin] = daySchedule.start.split(':').map(Number);
@@ -147,6 +153,15 @@ export async function calculateAvailableSlots(
       ) {
         hasConflict = true;
         break;
+      }
+    }
+
+    // If it's today, skip slots that have already passed
+    if (isToday) {
+      // Compare slot start time with current time
+      if (isBefore(currentSlot, nowInColombia) || currentSlot.getTime() === nowInColombia.getTime()) {
+        currentSlot = addMinutes(currentSlot, 15);
+        continue;
       }
     }
 
