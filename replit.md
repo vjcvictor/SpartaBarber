@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
   - **Multi-Role Support:** Users can have multiple accessible roles (e.g., ADMIN user can also be a BARBER). The `accessibleRoles` array is calculated based on related records and included in all auth responses.
   - **Admin-Barber Access:** ADMIN users with an associated Barber record can access both admin and barber panels. The `requireBarberAccess()` middleware validates that the user has barber permissions and assigns the appropriate `barberId`.
 - **Security Measures:** Defense-in-depth CSRF, password requirements, secure session management, IP/User-Agent logging, and trust proxy configuration.
-- **Availability Calculation:** A dedicated service calculates available time slots considering barber schedules, exceptions, service duration, and existing appointments, returning results in America/Bogota timezone.
+- **Availability Calculation:** A dedicated service calculates available time slots considering barber schedules, exceptions, service duration, and existing appointments, returning results in America/Bogota timezone. **Past Time Filtering:** When calculating availability for today, slots that have already passed are automatically excluded to prevent booking appointments in the past.
 - **Notification System:** Utilizes Meta Cloud API for WhatsApp and VAPID keys for web push notifications, with comprehensive logging and configurable settings.
 - **Analytics & Reporting:** 
   - Admin and barber dashboards support date range filtering with query params (startDate, endDate).
