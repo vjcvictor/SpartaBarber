@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { parsePhoneNumber } from 'libphonenumber-js';
+import { z } from 'zod';
 import { prisma } from './lib/prisma';
 import logger from './lib/logger';
 import { authMiddleware, requireRole, requireBarberAccess, type AuthRequest } from './middleware/auth';
@@ -1434,6 +1435,57 @@ router.get(
     } catch (error) {
       logger.error('Get admin appointments error:', error);
       res.status(500).json({ error: 'Error al obtener citas' });
+    }
+  }
+);
+
+router.put(
+  '/api/admin/appointments/:id',
+  authMiddleware,
+  requireRole('ADMIN'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const data = updateAppointmentSchema.parse(req.body);
+
+      const appointment = await prisma.appointment.findUnique({
+        where: { id },
+      });
+
+      if (!appointment) {
+        return res.status(404).json({ error: 'Cita no encontrada' });
+      }
+
+      const updated = await prisma.appointment.update({
+        where: { id },
+        data: {
+          ...(data.status && { status: data.status }),
+          ...(data.notes && { notes: data.notes }),
+        },
+        include: {
+          service: true,
+          barber: true,
+          client: true,
+        },
+      });
+
+      await createAuditLog(
+        req.user!.id,
+        'ADMIN',
+        'update',
+        'appointment',
+        id,
+        { statusChange: data.status },
+        req
+      );
+
+      res.json(updated);
+    } catch (error: unknown) {
+      logger.error('Update admin appointment error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      res.status(500).json({ error: 'Error al actualizar la cita' });
     }
   }
 );

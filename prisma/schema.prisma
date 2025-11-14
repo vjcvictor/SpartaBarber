@@ -86,7 +86,7 @@ model Appointment {
   clientId      String
   startDateTime DateTime
   endDateTime   DateTime
-  status        String   // agendado, cancelado, reagendado
+  status        String   // agendado, cancelado, reagendado, completado
   notes         String?
   createdByRole String   // ADMIN, BARBER, CLIENT
   createdAt     DateTime @default(now())

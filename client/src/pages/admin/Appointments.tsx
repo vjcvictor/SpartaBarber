@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle } from 'lucide-react';
+import { XCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { Appointment } from '@shared/schema';
@@ -59,12 +59,49 @@ export default function Appointments() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const response = await apiRequest('PUT', `/api/admin/appointments/${id}`, { status });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      toast({
+        title: 'Estado actualizado',
+        description: 'El estado de la cita se ha actualizado correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al actualizar el estado',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const filteredAppointments = appointments?.filter((appointment) => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'agendado') return appointment.status === 'agendado';
+    if (statusFilter === 'reagendado') return appointment.status === 'reagendado';
+    if (statusFilter === 'completado') return appointment.status === 'completado';
     if (statusFilter === 'cancelado') return appointment.status === 'cancelado';
     return true;
   }) || [];
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'completado':
+        return 'default';
+      case 'cancelado':
+        return 'destructive';
+      case 'agendado':
+      case 'reagendado':
+      default:
+        return 'secondary';
+    }
+  };
 
   const paginatedAppointments = filteredAppointments.slice(
     (page - 1) * PAGE_SIZE,
@@ -98,6 +135,8 @@ export default function Appointments() {
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
               <SelectItem value="agendado">Agendadas</SelectItem>
+              <SelectItem value="reagendado">Reagendadas</SelectItem>
+              <SelectItem value="completado">Completadas</SelectItem>
               <SelectItem value="cancelado">Canceladas</SelectItem>
             </SelectContent>
           </Select>
@@ -154,26 +193,42 @@ export default function Appointments() {
                           {formatDateTime(appointment.startDateTime)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={appointment.status === 'cancelado' ? 'destructive' : 'default'}
-                            data-testid="badge-appointment-status"
-                          >
-                            {appointment.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={getStatusBadgeVariant(appointment.status)}
+                              data-testid="badge-appointment-status"
+                            >
+                              {appointment.status}
+                            </Badge>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          {appointment.status !== 'cancelado' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => cancelMutation.mutate(appointment.id)}
-                              disabled={cancelMutation.isPending}
-                              data-testid="button-cancel-appointment"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Cancelar
-                            </Button>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {appointment.status !== 'completado' && appointment.status !== 'cancelado' && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => updateStatusMutation.mutate({ id: appointment.id, status: 'completado' })}
+                                disabled={updateStatusMutation.isPending || cancelMutation.isPending}
+                                data-testid={`button-complete-appointment-${appointment.id.substring(0, 8)}`}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                {updateStatusMutation.isPending ? 'Marcando...' : 'Marcar completado'}
+                              </Button>
+                            )}
+                            {appointment.status !== 'cancelado' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => cancelMutation.mutate(appointment.id)}
+                                disabled={cancelMutation.isPending || updateStatusMutation.isPending}
+                                data-testid={`button-cancel-appointment-${appointment.id.substring(0, 8)}`}
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                {cancelMutation.isPending ? 'Cancelando...' : 'Cancelar'}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
