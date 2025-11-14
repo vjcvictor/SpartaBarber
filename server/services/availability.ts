@@ -146,10 +146,10 @@ export async function calculateAvailableSlots(
       const apptStart = parseISO(appt.startDateTime.toISOString());
       const apptEnd = parseISO(appt.endDateTime.toISOString());
 
+      // Two appointments conflict if they overlap, but NOT if they just touch at boundaries
+      // Conflict exists if: slotStart < apptEnd AND slotEnd > apptStart
       if (
-        isWithinInterval(slotStartUTC, { start: apptStart, end: apptEnd }) ||
-        isWithinInterval(slotEndUTC, { start: apptStart, end: apptEnd }) ||
-        (isBefore(slotStartUTC, apptStart) && isAfter(slotEndUTC, apptEnd))
+        isBefore(slotStartUTC, apptEnd) && isAfter(slotEndUTC, apptStart)
       ) {
         hasConflict = true;
         break;
