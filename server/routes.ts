@@ -377,18 +377,23 @@ router.post('/api/appointments', apiLimiter, async (req: Request, res: Response)
     const endDate = addMinutes(startDate, service.durationMin);
 
     // Check availability using the same logic as the availability endpoint
-    const dateStr = format(startDate, 'yyyy-MM-dd');
-    const availableSlots = await calculateAvailableSlots(serviceId, barberId, dateStr);
-    const requestedTime = format(startDate, 'HH:mm');
+    // Convert UTC time to Colombia timezone to match slot times
+    const startDateColombia = toZonedTime(startDate, 'America/Bogota');
+    const dateStr = format(startDateColombia, 'yyyy-MM-dd');
+    const requestedTime = format(startDateColombia, 'HH:mm');
     
-    const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
+    const availableSlots = await calculateAvailableSlots(serviceId, barberId, dateStr);
+    
+    // Since calculateAvailableSlots now only returns available slots,
+    // we just need to check if the requested time exists in the array
+    const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime);
     
     if (!isAvailable) {
       logger.warn('Slot not available', { 
         barberId, 
         startDate: startDate.toISOString(), 
         requestedTime,
-        availableSlots 
+        availableSlots: availableSlots.map(s => s.startTime)
       });
       return res.status(400).json({ error: 'El horario seleccionado ya no está disponible' });
     }
