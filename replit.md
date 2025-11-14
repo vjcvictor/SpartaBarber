@@ -28,6 +28,13 @@ Preferred communication style: Simple, everyday language.
   - Time-series aggregation provides daily appointment and revenue breakdowns.
   - Service breakdown analytics show distribution of appointments by service type.
   - All date filtering uses America/Bogota timezone with startOfDay/endOfDay normalization.
+  - **Revenue Calculation:** Only appointments with status='completado' contribute to revenue metrics (prevents counting no-shows/cancelled appointments).
+- **Appointment Status Management:**
+  - Four status states: 'agendado', 'reagendado', 'completado', 'cancelado'
+  - Admin endpoint PUT /api/admin/appointments/:id allows status updates with audit logging
+  - UI provides "Marcar completado" button in admin appointments table for agendado/reagendado appointments
+  - Status changes invalidate TanStack Query caches for appointments and statistics
+  - Badge colors: agendado (green), reagendado (yellow), completado (blue), cancelado (red)
 
 ### Database Architecture
 - **ORM & Schema:** Prisma ORM with PostgreSQL; schema defined in `shared/schema.ts` (TypeScript) and Prisma schema, with migrations in `migrations/`.
