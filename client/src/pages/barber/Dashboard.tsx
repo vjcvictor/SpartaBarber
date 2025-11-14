@@ -112,7 +112,9 @@ export default function BarberDashboard() {
   }
 
   function formatChartDate(dateStr: string) {
-    const date = new Date(dateStr);
+    // Parse date string as local date (not UTC) to avoid timezone shift
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return format(date, 'dd/MMM', { locale: es });
   }
 
