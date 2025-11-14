@@ -74,7 +74,7 @@ export default function ClientAppointments() {
 
   function formatDateTime(dateTime: string) {
     const zonedDate = toZonedTime(new Date(dateTime), TIMEZONE);
-    return format(zonedDate, "dd/MM/yyyy HH:mm 'COT'");
+    return format(zonedDate, 'dd/MM/yyyy HH:mm');
   }
 
   function getStatusBadge(status: string) {

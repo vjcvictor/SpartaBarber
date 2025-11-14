@@ -112,7 +112,7 @@ export default function Appointments() {
 
   function formatDateTime(dateTime: string) {
     const zonedDate = toZonedTime(new Date(dateTime), TIMEZONE);
-    return format(zonedDate, "dd/MM/yyyy HH:mm 'COT'");
+    return format(zonedDate, 'dd/MM/yyyy HH:mm');
   }
 
   return (
@@ -158,10 +158,10 @@ export default function Appointments() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Servicio</TableHead>
                     <TableHead>Barbero</TableHead>
+                    <TableHead>Precio</TableHead>
                     <TableHead>Fecha/Hora</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -177,9 +177,6 @@ export default function Appointments() {
                   ) : (
                     paginatedAppointments.map((appointment) => (
                       <TableRow key={appointment.id} data-testid={`row-appointment-${appointment.id.substring(0, 8)}`}>
-                        <TableCell className="font-mono text-sm" data-testid="text-appointment-id">
-                          {appointment.id.substring(0, 8)}
-                        </TableCell>
                         <TableCell data-testid="text-client-name">
                           {appointment.client?.fullName}
                         </TableCell>
@@ -188,6 +185,9 @@ export default function Appointments() {
                         </TableCell>
                         <TableCell data-testid="text-barber-name">
                           {appointment.barber?.name}
+                        </TableCell>
+                        <TableCell data-testid="text-service-price">
+                          ${appointment.service?.priceCOP?.toLocaleString('es-CO') || '0'}
                         </TableCell>
                         <TableCell data-testid="text-appointment-datetime">
                           {formatDateTime(appointment.startDateTime)}
