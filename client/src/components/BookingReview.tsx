@@ -78,16 +78,16 @@ export default function BookingReview({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Revisa tu Cita</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Revisa tu Cita</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Verifica que todos los detalles sean correctos antes de confirmar
         </p>
       </div>
 
-      <Card className="p-6 space-y-6">
+      <Card className="p-4 sm:p-6 space-y-6">
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Servicio</h3>
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-3 sm:gap-4">
             <div className="p-3 bg-primary/10 rounded-lg">
               <Scissors className="w-6 h-6 text-primary" />
             </div>
@@ -123,21 +123,21 @@ export default function BookingReview({
 
         <Separator />
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-            <div>
+            <Calendar className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Fecha</p>
-              <p className="font-medium" data-testid="text-appointment-date">
+              <p className="font-medium text-sm sm:text-base break-words" data-testid="text-appointment-date">
                 {format(date, "EEEE, d 'de' MMMM", { locale: es })}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-muted-foreground" />
-            <div>
+            <Clock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Hora</p>
-              <p className="font-medium" data-testid="text-appointment-time">{time}</p>
+              <p className="font-medium text-sm sm:text-base" data-testid="text-appointment-time">{time}</p>
             </div>
           </div>
         </div>
@@ -150,16 +150,16 @@ export default function BookingReview({
           </h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <User className="w-5 h-5 text-muted-foreground" />
-              <span data-testid="text-client-name">{clientData.fullName}</span>
+              <User className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm sm:text-base break-words min-w-0" data-testid="text-client-name">{clientData.fullName}</span>
             </div>
             <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-muted-foreground" />
-              <span data-testid="text-client-email">{clientData.email}</span>
+              <Mail className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm sm:text-base break-all min-w-0" data-testid="text-client-email">{clientData.email}</span>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="w-5 h-5 text-muted-foreground" />
-              <span data-testid="text-client-phone">{clientData.phoneE164}</span>
+              <Phone className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm sm:text-base" data-testid="text-client-phone">{clientData.phoneE164}</span>
             </div>
             {clientData.notes && (
               <div className="flex items-start gap-3">

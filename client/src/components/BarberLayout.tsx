@@ -124,7 +124,7 @@ export default function BarberLayout({ children }: BarberLayoutProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <div className="p-2">
-                  <p className="text-sm text-muted-foreground mb-2" data-testid="text-barber-email">
+                  <p className="text-sm text-muted-foreground mb-2 truncate" data-testid="text-barber-email" title={authData.user.email}>
                     {authData.user.email}
                   </p>
                   <Button
@@ -142,15 +142,15 @@ export default function BarberLayout({ children }: BarberLayoutProps) {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-        <div className="flex flex-col flex-1">
-          <header className="flex items-center gap-4 p-4 border-b">
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 border-b flex-wrap">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <h2 className="text-lg font-semibold">Panel del Barbero</h2>
+            <h2 className="text-base sm:text-lg font-semibold truncate">Panel del Barbero</h2>
             <div className="ml-auto">
               <PanelSwitcher />
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-8">
+          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
             {children}
           </main>
         </div>

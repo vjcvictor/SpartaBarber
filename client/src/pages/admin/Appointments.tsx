@@ -117,19 +117,19 @@ export default function Appointments() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-3xl font-bold">Citas</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Citas</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gestiona todas las citas de la barbería
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48" data-testid="select-status-filter">
+            <SelectTrigger className="w-full sm:w-48" data-testid="select-status-filter">
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
@@ -148,23 +148,24 @@ export default function Appointments() {
 
         <Card>
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
             <>
-              <Table>
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Barbero</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Fecha/Hora</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+                    <TableHead className="min-w-[120px]">Cliente</TableHead>
+                    <TableHead className="min-w-[120px]">Servicio</TableHead>
+                    <TableHead className="min-w-[100px]">Barbero</TableHead>
+                    <TableHead className="min-w-[90px] whitespace-nowrap">Precio</TableHead>
+                    <TableHead className="min-w-[130px] whitespace-nowrap">Fecha/Hora</TableHead>
+                    <TableHead className="min-w-[90px]">Estado</TableHead>
+                    <TableHead className="text-right min-w-[200px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -186,10 +187,10 @@ export default function Appointments() {
                         <TableCell data-testid="text-barber-name">
                           {appointment.barber?.name}
                         </TableCell>
-                        <TableCell data-testid="text-service-price">
+                        <TableCell className="whitespace-nowrap" data-testid="text-service-price">
                           ${appointment.service?.priceCOP?.toLocaleString('es-CO') || '0'}
                         </TableCell>
-                        <TableCell data-testid="text-appointment-datetime">
+                        <TableCell className="whitespace-nowrap" data-testid="text-appointment-datetime">
                           {formatDateTime(appointment.startDateTime)}
                         </TableCell>
                         <TableCell>
@@ -203,7 +204,7 @@ export default function Appointments() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1 sm:gap-2">
                             {appointment.status !== 'completado' && appointment.status !== 'cancelado' && (
                               <Button
                                 variant="default"
@@ -211,9 +212,10 @@ export default function Appointments() {
                                 onClick={() => updateStatusMutation.mutate({ id: appointment.id, status: 'completado' })}
                                 disabled={updateStatusMutation.isPending || cancelMutation.isPending}
                                 data-testid={`button-complete-appointment-${appointment.id.substring(0, 8)}`}
+                                className="text-xs whitespace-nowrap w-full sm:w-auto"
                               >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                {updateStatusMutation.isPending ? 'Marcando...' : 'Marcar completado'}
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                {updateStatusMutation.isPending ? 'Marcando...' : 'Completar'}
                               </Button>
                             )}
                             {appointment.status !== 'cancelado' && (
@@ -223,8 +225,9 @@ export default function Appointments() {
                                 onClick={() => cancelMutation.mutate(appointment.id)}
                                 disabled={cancelMutation.isPending || updateStatusMutation.isPending}
                                 data-testid={`button-cancel-appointment-${appointment.id.substring(0, 8)}`}
+                                className="text-xs whitespace-nowrap w-full sm:w-auto"
                               >
-                                <XCircle className="w-4 h-4 mr-2" />
+                                <XCircle className="w-3 h-3 mr-1" />
                                 {cancelMutation.isPending ? 'Cancelando...' : 'Cancelar'}
                               </Button>
                             )}
@@ -235,9 +238,10 @@ export default function Appointments() {
                   )}
                 </TableBody>
               </Table>
+              </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between p-4 border-t">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 sm:p-4 border-t">
                   <div className="text-sm text-muted-foreground">
                     Página {page} de {totalPages}
                   </div>

@@ -84,8 +84,8 @@ export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Tus Datos de Contacto</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Tus Datos de Contacto</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Completa la información para confirmar tu cita
         </p>
       </div>
@@ -117,7 +117,7 @@ export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
                 control={form.control}
                 name="countryCode"
                 render={({ field }) => (
-                  <FormItem className="w-28">
+                  <FormItem className="w-24 sm:w-28">
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-country">

@@ -21,10 +21,10 @@ export default function BarberSelection({ serviceId, selectedBarber, onSelect }:
     return (
       <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Selecciona tu Barbero</h2>
-          <p className="text-muted-foreground">Elige el profesional que quieres que te atienda</p>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2">Selecciona tu Barbero</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Elige el profesional que quieres que te atienda</p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="p-6">
               <div className="flex flex-col items-center text-center space-y-3">
@@ -42,11 +42,11 @@ export default function BarberSelection({ serviceId, selectedBarber, onSelect }:
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Selecciona tu Barbero</h2>
-        <p className="text-muted-foreground">Elige el profesional que quieres que te atienda</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Selecciona tu Barbero</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">Elige el profesional que quieres que te atienda</p>
       </div>
       
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {barbers.map((barber) => {
           const isSelected = selectedBarber?.id === barber.id;
           

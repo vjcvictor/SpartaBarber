@@ -80,28 +80,32 @@ export default function Home() {
     <>
       <div className="min-h-screen bg-background">
         {authData?.user && (
-          <div className="bg-primary/10 py-2 px-4 text-center flex items-center justify-center gap-4">
-            <span className="text-sm" data-testid="text-welcome-user">
+          <div className="bg-primary/10 py-3 px-4 sm:px-6 text-center flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 flex-wrap">
+            <span className="text-sm whitespace-nowrap" data-testid="text-welcome-user">
               Bienvenido, {authData.user.email}
             </span>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setLocation(getPanelRoute())}
-              data-testid="button-access-panel"
-            >
-              <LayoutDashboard className="h-4 w-4 mr-2" />
-              Mi Panel
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLoginClick}
-              disabled={logoutMutation.isPending}
-              data-testid="button-logout"
-            >
-              Cerrar sesión
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setLocation(getPanelRoute())}
+                data-testid="button-access-panel"
+                className="whitespace-nowrap"
+              >
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                Mi Panel
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoginClick}
+                disabled={logoutMutation.isPending}
+                data-testid="button-logout"
+                className="whitespace-nowrap"
+              >
+                Cerrar sesión
+              </Button>
+            </div>
           </div>
         )}
         <LandingHero

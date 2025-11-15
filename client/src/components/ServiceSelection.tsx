@@ -19,11 +19,11 @@ export default function ServiceSelection({ services, selectedService, onSelect }
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Selecciona tu Servicio</h2>
-        <p className="text-muted-foreground">Elige el corte o tratamiento que deseas</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Selecciona tu Servicio</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">Elige el corte o tratamiento que deseas</p>
       </div>
       
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map((service) => {
           const Icon = iconMap[service.icon] || Scissors;
           const isSelected = selectedService?.id === service.id;

@@ -123,7 +123,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <div className="p-2">
-                  <p className="text-sm text-muted-foreground mb-2" data-testid="text-client-email">
+                  <p className="text-sm text-muted-foreground mb-2 truncate" data-testid="text-client-email" title={authData.user.email}>
                     {authData.user.email}
                   </p>
                   <Button
@@ -141,12 +141,12 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
-        <div className="flex flex-col flex-1">
-          <header className="flex items-center gap-4 p-4 border-b">
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 border-b flex-wrap">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <h2 className="text-lg font-semibold">Panel del Cliente</h2>
+            <h2 className="text-base sm:text-lg font-semibold truncate">Panel del Cliente</h2>
           </header>
-          <main className="flex-1 overflow-auto p-8">
+          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
             {children}
           </main>
         </div>

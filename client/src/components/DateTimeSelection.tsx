@@ -90,12 +90,12 @@ export default function DateTimeSelection({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Elige Fecha y Hora</h2>
-        <p className="text-muted-foreground">Selecciona una fecha</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">Elige Fecha y Hora</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">Selecciona una fecha</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6">
           <TabsTrigger 
             value="today" 
             onClick={() => handleQuickDate(today, 'today')}
@@ -153,13 +153,13 @@ export default function DateTimeSelection({
             ))}
           </div>
         ) : selectedDate && availableSlots.length > 0 ? (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
             {availableSlots.map((slot) => (
               <Button
                 key={slot.startTime}
                 variant={selectedTime === slot.startTime ? 'default' : 'outline'}
                 className={cn(
-                  "h-12",
+                  "h-11 sm:h-12 text-sm sm:text-base",
                   selectedTime === slot.startTime && "ring-2 ring-primary/50"
                 )}
                 onClick={() => handleTimeSelect(slot)}
