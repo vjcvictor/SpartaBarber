@@ -21,6 +21,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export interface Service {
   id: string;
   name: string;
+  category: string;
   icon: string;
   priceCOP: number;
   description: string;
