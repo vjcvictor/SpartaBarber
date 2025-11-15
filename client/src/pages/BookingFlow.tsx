@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,10 @@ export default function BookingFlow() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogMode, setAuthDialogMode] = useState<'login' | 'register'>('login');
   const [, setLocation] = useLocation();
+  
+  // Refs for auto-scrolling
+  const barberSectionRef = useRef<HTMLDivElement>(null);
+  const nextButtonRef = useRef<HTMLDivElement>(null);
 
   const {
     currentStep,
@@ -80,6 +84,30 @@ export default function BookingFlow() {
 
   const canProceedFromStep1 = selectedService && selectedBarber;
   const canProceedFromStep2 = selectedDate && selectedTime;
+
+  // Auto-scroll when service is selected
+  useEffect(() => {
+    if (selectedService && barberSectionRef.current && currentStep === 1) {
+      setTimeout(() => {
+        barberSectionRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 300);
+    }
+  }, [selectedService, currentStep]);
+
+  // Auto-scroll when barber is selected
+  useEffect(() => {
+    if (selectedBarber && nextButtonRef.current && currentStep === 1) {
+      setTimeout(() => {
+        nextButtonRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 300);
+    }
+  }, [selectedBarber, currentStep]);
 
   const getInitialFormData = () => {
     if (isAuthenticated && clientStats && !clientData.fullName) {
@@ -167,21 +195,29 @@ export default function BookingFlow() {
                 />
               )}
               {selectedService && (
-                <BarberSelection
-                  serviceId={selectedService.id}
-                  selectedBarber={selectedBarber}
-                  onSelect={setBarber}
-                />
+                <div ref={barberSectionRef} className="scroll-mt-8">
+                  <BarberSelection
+                    serviceId={selectedService.id}
+                    selectedBarber={selectedBarber}
+                    onSelect={setBarber}
+                  />
+                </div>
               )}
               {canProceedFromStep1 && (
-                <div className="flex justify-end">
-                  <Button 
-                    size="lg" 
-                    onClick={goNext}
-                    data-testid="button-next-step1"
-                  >
-                    Siguiente
-                  </Button>
+                <div 
+                  ref={nextButtonRef}
+                  className="sticky bottom-4 z-10 pt-4"
+                >
+                  <div className="flex justify-end">
+                    <Button 
+                      size="lg"
+                      className="shadow-lg"
+                      onClick={goNext}
+                      data-testid="button-next-step1"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
