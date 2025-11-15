@@ -3,7 +3,9 @@
 ## Overview
 Barbería Sparta is a full-stack appointment booking system for a Colombian barbershop. It allows clients to book appointments online through a multi-step flow and provides admin/barber staff with tools to manage services, schedules, appointments, and clients. Key features include real-time availability, WhatsApp and push notifications, and comprehensive audit logging. The project aims to provide a professional and efficient booking experience, enhancing customer satisfaction and streamlining barbershop operations.
 
-**Recent Update (Nov 15, 2025):** Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
+**Recent Updates (Nov 15, 2025):** 
+- Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
+- Service categorization feature: Services now include a `category` field with 4 predefined categories. Admin UI updated to manage categories, and booking flow displays services grouped and sorted by category (fewest to most services per category).
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -47,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 ### Database Architecture
 - **ORM & Schema:** Prisma ORM with PostgreSQL; schema defined in `shared/schema.ts` (TypeScript) and Prisma schema, with migrations in `migrations/`.
 - **Core Data Models:** User, Client, Service, Barber, Appointment, Config, AuditLog, and NotificationLog.
+- **Service Categories:** Services have a required `category` field with 4 predefined options: "Servicios Individuales", "Combos de dos servicios", "Combos de tres servicios", and "Combo completo". The booking flow groups services by category and sorts categories by service count (ascending).
 - **Schedule Management:** Weekly schedules stored as JSON, supporting schedule exceptions and timezone-aware handling.
 - **Data Relationships:** Appointments link services, barbers, and clients; audit logs reference users, and notification logs track delivery per appointment.
 

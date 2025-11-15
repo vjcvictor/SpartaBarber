@@ -244,6 +244,7 @@ router.get('/api/services', apiLimiter, async (req: Request, res: Response) => {
       priceCOP: s.priceCOP,
       description: s.description,
       durationMin: s.durationMin,
+      category: s.category,
       active: s.active,
     }));
 
@@ -496,6 +497,7 @@ router.get('/api/appointments/:id', apiLimiter, async (req: Request, res: Respon
         priceCOP: appointment.service.priceCOP,
         description: appointment.service.description,
         durationMin: appointment.service.durationMin,
+        category: appointment.service.category,
         active: appointment.service.active,
       },
       barber: {
@@ -1587,6 +1589,7 @@ router.get(
         priceCOP: s.priceCOP,
         description: s.description,
         durationMin: s.durationMin,
+        category: s.category,
         active: s.active,
       }));
 

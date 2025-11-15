@@ -115,6 +115,7 @@ async function main() {
         priceCOP: 15000,
         description: 'Corte tradicional con tijera y máquina',
         durationMin: 30,
+        category: 'Servicios individuales',
         active: true,
       },
     });
@@ -129,6 +130,7 @@ async function main() {
         priceCOP: 25000,
         description: 'Corte completo más arreglo de barba',
         durationMin: 45,
+        category: 'Combo de dos servicios',
         active: true,
       },
     });
@@ -143,6 +145,7 @@ async function main() {
         priceCOP: 30000,
         description: 'Tratamiento facial profundo',
         durationMin: 40,
+        category: 'Servicios individuales',
         active: true,
       },
     });
