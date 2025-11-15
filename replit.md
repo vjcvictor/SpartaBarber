@@ -3,6 +3,8 @@
 ## Overview
 Barbería Sparta is a full-stack appointment booking system for a Colombian barbershop. It allows clients to book appointments online through a multi-step flow and provides admin/barber staff with tools to manage services, schedules, appointments, and clients. Key features include real-time availability, WhatsApp and push notifications, and comprehensive audit logging. The project aims to provide a professional and efficient booking experience, enhancing customer satisfaction and streamlining barbershop operations.
 
+**Recent Update (Nov 15, 2025):** Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -13,6 +15,12 @@ Preferred communication style: Simple, everyday language.
 - **Design System:** Custom design system (`design_guidelines.md`) with a Colombian barbershop aesthetic, warm earth tones (primary Amber `#f59f0a`), accessible color contrasts, and Inter/Poppins typography.
 - **Component Architecture:** Organized UI components, feature-specific components (booking flow, admin panels), page-level components, and reusable hooks.
 - **State Management:** Zustand manages booking flow, TanStack Query handles server state and caching, and local component state for UI interactions.
+- **Responsive Design:** Fully responsive across all breakpoints (320px mobile to desktop):
+  - **Table Pattern:** All data tables use `overflow-x-auto` wrapper pattern with minimum widths (600-800px) for horizontal scroll on small screens. Tables include `min-w` constraints on critical columns and `whitespace-nowrap` on date/time/price cells.
+  - **Breakpoint Strategy:** Tailwind `sm:` (640px) for primary responsive transitions. Headers scale from `text-2xl` (mobile) to `text-3xl` (desktop). Layouts transition from `flex-col` (mobile) to `flex-row` (tablet+).
+  - **Component Adaptation:** Filters, search inputs, and controls use `w-full sm:w-[200px]` pattern. Buttons in action columns stack vertically on mobile (`flex-col sm:flex-row`) with `w-full sm:w-auto` widths.
+  - **Spacing:** Adaptive spacing throughout with patterns like `space-y-4 sm:space-y-6`, `p-3 sm:p-4`, `gap-2 sm:gap-4`.
+  - **Updated Pages (8 files):** admin/Appointments, admin/Clients, admin/Barbers, admin/Services, barber/Appointments, barber/Dashboard, client/Appointments, client/Dashboard.
 
 ### Backend Architecture
 - **Technology Stack:** Express.js with TypeScript, Prisma ORM, PostgreSQL (Neon serverless), JWT-based authentication (httpOnly cookies), bcryptjs for hashing, and Zod for validation.
