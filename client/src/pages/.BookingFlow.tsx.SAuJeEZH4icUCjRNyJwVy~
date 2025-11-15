@@ -36,7 +36,6 @@ export default function BookingFlow() {
     clientData,
     clientDraft,
     clientDraftVersion,
-    hasUserEditedDraft,
     setService,
     setBarber,
     setDate,
@@ -65,22 +64,27 @@ export default function BookingFlow() {
 
   const isAuthenticated = !!authData && authData.user.role === 'CLIENT';
 
-  // Hydrate client draft only once before user starts editing
+  // Hydrate client draft only if draft is empty (not yet edited by user)
   useEffect(() => {
-    if (isAuthenticated && clientStats && !hasUserEditedDraft) {
+    if (isAuthenticated && clientStats) {
       const statsData = clientStats as any;
       const phoneWithoutCountryCode = statsData.phoneE164?.replace('+57', '').trim() || '';
       const emailFromAuth = authData?.user.email || '';
       
-      hydrateClientDraft({
-        fullName: statsData.clientName || '',
-        countryCode: '+57',
-        phone: phoneWithoutCountryCode,
-        email: emailFromAuth,
-        notes: '',
-      });
+      // Only hydrate if the draft is still empty (user hasn't started editing)
+      const isDraftEmpty = !clientDraft.fullName && !clientDraft.phone && !clientDraft.email;
+      
+      if (isDraftEmpty) {
+        hydrateClientDraft({
+          fullName: statsData.clientName || '',
+          countryCode: '+57',
+          phone: phoneWithoutCountryCode,
+          email: emailFromAuth,
+          notes: '',
+        });
+      }
     }
-  }, [isAuthenticated, clientStats, authData, hasUserEditedDraft, hydrateClientDraft]);
+  }, [isAuthenticated, clientStats, authData, clientDraft, hydrateClientDraft]);
 
   const handleClientFormSubmit = (data: ClientFormOutput) => {
     // Commit the draft to final clientData

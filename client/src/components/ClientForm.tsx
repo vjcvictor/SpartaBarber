@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { parsePhoneNumber } from 'libphonenumber-js';
@@ -20,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { ClientDraftData } from '@/lib/store';
 
 const clientFormSchema = z.object({
   fullName: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
@@ -49,21 +51,48 @@ export interface ClientFormOutput {
 }
 
 interface ClientFormProps {
-  initialData?: Partial<ClientFormData>;
+  draftData: ClientDraftData;
+  dataVersion: number;
+  onChange: (data: Partial<ClientDraftData>) => void;
   onSubmit: (data: ClientFormOutput) => void;
 }
 
-export default function ClientForm({ initialData, onSubmit }: ClientFormProps) {
+export default function ClientForm({ draftData, dataVersion, onChange, onSubmit }: ClientFormProps) {
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      fullName: initialData?.fullName || '',
-      countryCode: initialData?.countryCode || '+57',
-      phone: initialData?.phone || '',
-      email: initialData?.email || '',
-      notes: initialData?.notes || '',
+      fullName: draftData.fullName || '',
+      countryCode: draftData.countryCode || '+57',
+      phone: draftData.phone || '',
+      email: draftData.email || '',
+      notes: draftData.notes || '',
     },
   });
+
+  // Reset form when dataVersion changes (deliberate hydration)
+  useEffect(() => {
+    form.reset({
+      fullName: draftData.fullName || '',
+      countryCode: draftData.countryCode || '+57',
+      phone: draftData.phone || '',
+      email: draftData.email || '',
+      notes: draftData.notes || '',
+    });
+  }, [dataVersion]);
+
+  // Watch form changes and sync to store
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      onChange({
+        fullName: value.fullName || '',
+        countryCode: value.countryCode || '+57',
+        phone: value.phone || '',
+        email: value.email || '',
+        notes: value.notes || '',
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [onChange]);
 
   const handleSubmit = (data: ClientFormData) => {
     try {
