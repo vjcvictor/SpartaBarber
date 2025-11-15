@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useBookingStore } from '@/lib/store';
 import type { AuthResponse } from '@shared/schema';
 
 const loginSchema = z.object({
@@ -76,10 +77,15 @@ interface AuthDialogProps {
 
 export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }: AuthDialogProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [formKey, setFormKey] = useState(0);
   const { toast } = useToast();
+  const { hydrateClientDraft } = useBookingStore();
 
   useEffect(() => {
     setMode(initialMode);
+    if (open) {
+      setFormKey(prev => prev + 1);
+    }
   }, [initialMode, open]);
 
   const loginForm = useForm<LoginFormData>({
@@ -106,9 +112,26 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
       const res = await apiRequest('POST', '/api/auth/login', data);
       return res.json();
     },
-    onSuccess: (data: AuthResponse) => {
+    onSuccess: async (data: AuthResponse) => {
       queryClient.setQueryData(['/api/auth/me'], data);
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      // Fetch client stats to get phone number
+      const statsRes = await fetch('/api/client/stats');
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        const phoneWithoutCode = statsData.phoneE164?.replace(/^\+\d{1,3}/, '').trim() || '';
+        const countryCode = statsData.phoneE164?.match(/^\+\d{1,3}/)?.[0] || '+57';
+        
+        hydrateClientDraft({
+          fullName: statsData.clientName || '',
+          countryCode,
+          phone: phoneWithoutCode,
+          email: data.user.email,
+          notes: '',
+        });
+      }
+      
       toast({
         title: '¡Bienvenido!',
         description: `Hola ${data.user.email}`,
@@ -146,11 +169,21 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
         fullName: data.fullName,
         phoneE164,
       });
-      return res.json();
+      return { ...await res.json(), registeredPhone: data.phone, registeredCountryCode: data.countryCode, registeredFullName: data.fullName };
     },
-    onSuccess: (data: AuthResponse) => {
+    onSuccess: (data: AuthResponse & { registeredPhone?: string; registeredCountryCode?: string; registeredFullName?: string }) => {
       queryClient.setQueryData(['/api/auth/me'], data);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      
+      // Auto-populate ClientForm with registration data
+      hydrateClientDraft({
+        fullName: data.registeredFullName || '',
+        countryCode: data.registeredCountryCode || '+57',
+        phone: data.registeredPhone || '',
+        email: data.user.email,
+        notes: '',
+      });
+      
       toast({
         title: '¡Cuenta creada!',
         description: `Bienvenido ${data.user.email}`,
@@ -190,7 +223,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
         </DialogHeader>
 
         {mode === 'login' ? (
-          <Form {...loginForm}>
+          <Form {...loginForm} key={`login-${formKey}`}>
             <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
               <FormField
                 control={loginForm.control}
@@ -220,6 +253,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                       <Input
                         type="password"
                         placeholder="••••••••"
+                        autoComplete="current-password"
                         {...field}
                         data-testid="input-login-password"
                       />
@@ -251,7 +285,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
             </form>
           </Form>
         ) : (
-          <Form {...registerForm}>
+          <Form {...registerForm} key={`register-${formKey}`}>
             <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-4">
               <FormField
                 control={registerForm.control}
@@ -262,6 +296,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                     <FormControl>
                       <Input
                         placeholder="Juan Pérez"
+                        autoComplete="name"
                         {...field}
                         data-testid="input-register-fullname"
                       />
@@ -324,6 +359,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                         <FormControl>
                           <Input
                             placeholder="3001234567"
+                            autoComplete="tel"
                             {...field}
                             data-testid="input-register-phone"
                           />
@@ -344,6 +380,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                       <Input
                         type="password"
                         placeholder="••••••••"
+                        autoComplete="new-password"
                         {...field}
                         data-testid="input-register-password"
                       />
