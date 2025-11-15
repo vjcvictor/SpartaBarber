@@ -6,6 +6,13 @@ Barbería Sparta is a full-stack appointment booking system for a Colombian barb
 **Recent Updates (Nov 15, 2025):** 
 - Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
 - Service categorization feature: Services now include a `category` field with 4 predefined categories. Admin UI updated to manage categories, and booking flow displays services grouped and sorted by category (fewest to most services per category).
+- **Booking Flow UX Enhancements (Nov 15, 2025):**
+  - Service catalog refined to exactly 15 services across 4 categories (removed "Corte Clásico" and "Limpieza Facial")
+  - Category display order updated: Combo completo → Combos de tres → Combos de dos → Servicios Individuales (most comprehensive to individual)
+  - Compact design: Reduced padding (p-6→p-4), smaller icons (w-8→w-6), tighter gaps (gap-4→gap-3), smaller typography for better mobile experience
+  - Auto-scroll UX: When service selected, page smoothly scrolls to barber selection; when barber selected, scrolls to "Siguiente" button
+  - Sticky "Siguiente" button with shadow for improved visibility and accessibility
+  - Fallback support for future service categories not in predefined order
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
