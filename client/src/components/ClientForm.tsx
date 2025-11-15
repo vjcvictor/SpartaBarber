@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { parsePhoneNumber } from 'libphonenumber-js';
+import { parsePhoneNumber, type CountryCode } from 'libphonenumber-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +31,17 @@ const clientFormSchema = z.object({
   notes: z.string().optional(),
 }).refine((data) => {
   try {
-    const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+    // Map country codes to country ISO codes
+    const countryMap: Record<string, CountryCode> = {
+      '+57': 'CO',  // Colombia
+      '+58': 'VE',  // Venezuela
+      '+1': 'US',   // United States
+      '+52': 'MX',  // Mexico
+      '+34': 'ES',  // Spain
+    };
+    
+    const countryISO = countryMap[data.countryCode] || 'CO';
+    const phoneNumber = parsePhoneNumber(data.phone, countryISO);
     return phoneNumber.isValid();
   } catch {
     return false;
@@ -96,7 +106,17 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
 
   const handleSubmit = (data: ClientFormData) => {
     try {
-      const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+      // Map country codes to country ISO codes
+      const countryMap: Record<string, CountryCode> = {
+        '+57': 'CO',
+        '+58': 'VE',
+        '+1': 'US',
+        '+52': 'MX',
+        '+34': 'ES',
+      };
+      
+      const countryISO = countryMap[data.countryCode] || 'CO';
+      const phoneNumber = parsePhoneNumber(data.phone, countryISO);
       const phoneE164 = phoneNumber.format('E.164');
       
       onSubmit({
@@ -155,6 +175,7 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="+57">🇨🇴 +57</SelectItem>
+                        <SelectItem value="+58">🇻🇪 +58</SelectItem>
                         <SelectItem value="+1">🇺🇸 +1</SelectItem>
                         <SelectItem value="+52">🇲🇽 +52</SelectItem>
                         <SelectItem value="+34">🇪🇸 +34</SelectItem>

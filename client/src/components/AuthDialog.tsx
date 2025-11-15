@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { parsePhoneNumber } from 'libphonenumber-js';
+import { parsePhoneNumber, type CountryCode } from 'libphonenumber-js';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { AuthResponse } from '@shared/schema';
@@ -33,11 +40,22 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
+  countryCode: z.string().default('+57'),
   phone: z.string().min(7, 'Teléfono inválido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
 }).refine((data) => {
   try {
-    const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+    // Map country codes to country ISO codes
+    const countryMap: Record<string, CountryCode> = {
+      '+57': 'CO',  // Colombia
+      '+58': 'VE',  // Venezuela
+      '+1': 'US',   // United States
+      '+52': 'MX',  // Mexico
+      '+34': 'ES',  // Spain
+    };
+    
+    const countryISO = countryMap[data.countryCode] || 'CO';
+    const phoneNumber = parsePhoneNumber(data.phone, countryISO);
     return phoneNumber.isValid();
   } catch {
     return false;
@@ -77,6 +95,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
     defaultValues: {
       fullName: '',
       email: '',
+      countryCode: '+57',
       phone: '',
       password: '',
     },
@@ -108,7 +127,17 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
-      const phoneNumber = parsePhoneNumber(data.phone, 'CO');
+      // Map country codes to country ISO codes
+      const countryMap: Record<string, CountryCode> = {
+        '+57': 'CO',
+        '+58': 'VE',
+        '+1': 'US',
+        '+52': 'MX',
+        '+34': 'ES',
+      };
+      
+      const countryISO = countryMap[data.countryCode] || 'CO';
+      const phoneNumber = parsePhoneNumber(data.phone, countryISO);
       const phoneE164 = phoneNumber.format('E.164');
 
       const res = await apiRequest('POST', '/api/auth/register', {
@@ -259,23 +288,49 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                   </FormItem>
                 )}
               />
-              <FormField
-                control={registerForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono (Colombia)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="3001234567"
-                        {...field}
-                        data-testid="input-register-phone"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-2">
+                <FormLabel>Teléfono</FormLabel>
+                <div className="flex gap-2">
+                  <FormField
+                    control={registerForm.control}
+                    name="countryCode"
+                    render={({ field }) => (
+                      <FormItem className="w-32">
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-register-country">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="+57">🇨🇴 +57</SelectItem>
+                            <SelectItem value="+58">🇻🇪 +58</SelectItem>
+                            <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                            <SelectItem value="+52">🇲🇽 +52</SelectItem>
+                            <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={registerForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Input
+                            placeholder="3001234567"
+                            {...field}
+                            data-testid="input-register-phone"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
               <FormField
                 control={registerForm.control}
                 name="password"
