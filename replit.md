@@ -6,6 +6,22 @@ Barbería Sparta is a full-stack appointment booking system for a Colombian barb
 **Recent Updates (Nov 15, 2025):** 
 - Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
 - Service categorization feature: Services now include a `category` field with 4 predefined categories. Admin UI updated to manage categories, and booking flow displays services grouped and sorted by category (fewest to most services per category).
+- **Multi-Country Phone Support (Nov 15, 2025):**
+  - Registration (AuthDialog) and booking (ClientForm) forms now include country selector with flag emojis
+  - Supported countries: Colombia 🇨🇴 (+57), Venezuela 🇻🇪 (+58), USA 🇺🇸 (+1), Mexico 🇲🇽 (+52), Spain 🇪🇸 (+34)
+  - Phone validation uses libphonenumber-js with country-specific rules
+  - Country code to ISO mapping: +57→CO, +58→VE, +1→US, +52→MX, +34→ES
+  - Default country: Colombia (+57)
+- **Client Form Draft State (Nov 15, 2025):**
+  - Implemented draft state pattern in Zustand store to prevent form autocomplete bugs
+  - Draft state includes `clientDraft`, `clientDraftVersion`, `hasUserEditedDraft` flag
+  - Hydration actions: `hydrateClientDraft()`, `patchClientDraft()`, `commitClientData()`
+  - User edit guard prevents rehydration on window focus/query refetch
+  - Resolves "Maximum update depth exceeded" infinite loop and form reset issues
+- **Database Persistence Verification (Nov 15, 2025):**
+  - Confirmed SQLite database (data/app.db) working correctly
+  - Admin changes to barbers/services persist properly
+  - 15 active services and 2 barbers in production database
 - **Booking Flow UX Enhancements (Nov 15, 2025):**
   - Service catalog refined to exactly 15 services across 4 categories (removed "Corte Clásico" and "Limpieza Facial")
   - Category display order updated: Combo completo → Combos de tres → Combos de dos → Servicios Individuales (most comprehensive to individual)
@@ -54,11 +70,12 @@ Preferred communication style: Simple, everyday language.
   - Badge colors: agendado (green), reagendado (yellow), completado (blue), cancelado (red)
 
 ### Database Architecture
-- **ORM & Schema:** Prisma ORM with PostgreSQL; schema defined in `shared/schema.ts` (TypeScript) and Prisma schema, with migrations in `migrations/`.
+- **ORM & Schema:** Prisma ORM with SQLite (data/app.db); schema defined in `shared/schema.ts` (TypeScript) and Prisma schema (`prisma/schema.prisma`), with migrations in `prisma/migrations/`.
 - **Core Data Models:** User, Client, Service, Barber, Appointment, Config, AuditLog, and NotificationLog.
 - **Service Categories:** Services have a required `category` field with 4 predefined options: "Servicios Individuales", "Combos de dos servicios", "Combos de tres servicios", and "Combo completo". The booking flow groups services by category and sorts categories by service count (ascending).
 - **Schedule Management:** Weekly schedules stored as JSON, supporting schedule exceptions and timezone-aware handling.
 - **Data Relationships:** Appointments link services, barbers, and clients; audit logs reference users, and notification logs track delivery per appointment.
+- **Phone Number Storage:** All phone numbers stored in E.164 format (e.g., +573001234567) for international compatibility.
 
 ## External Dependencies
 

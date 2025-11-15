@@ -288,15 +288,17 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                   </FormItem>
                 )}
               />
-              <div className="space-y-2">
-                <FormLabel>Teléfono</FormLabel>
-                <div className="flex gap-2">
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Teléfono
+                </label>
+                <div className="flex gap-2 mt-2">
                   <FormField
                     control={registerForm.control}
                     name="countryCode"
                     render={({ field }) => (
                       <FormItem className="w-32">
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-register-country">
                               <SelectValue />
@@ -310,6 +312,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                             <SelectItem value="+34">🇪🇸 +34</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
