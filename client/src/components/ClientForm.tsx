@@ -87,7 +87,7 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
       phone: draftData.phone || '',
       email: draftData.email || '',
       notes: draftData.notes || '',
-    });
+    }, { keepDefaultValues: false });
   }, [dataVersion]);
 
   // Watch form changes and sync to store
@@ -139,7 +139,7 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
         </p>
       </div>
 
-      <Form {...form}>
+      <Form {...form} key={`client-form-${dataVersion}`}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <FormField
             control={form.control}
