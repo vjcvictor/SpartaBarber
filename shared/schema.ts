@@ -191,6 +191,7 @@ export interface AuthResponse {
 // Admin CRUD schemas
 export const createServiceSchema = z.object({
   name: z.string().min(2),
+  category: z.string().min(1),
   icon: z.string().min(1),
   priceCOP: z.number().int().positive(),
   description: z.string().min(1),

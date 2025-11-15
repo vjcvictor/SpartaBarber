@@ -34,6 +34,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -52,6 +59,7 @@ export default function Services() {
     resolver: zodResolver(createServiceSchema),
     defaultValues: {
       name: '',
+      category: '',
       icon: '',
       priceCOP: 0,
       description: '',
@@ -132,6 +140,7 @@ export default function Services() {
     setEditingService(service);
     form.reset({
       name: service.name,
+      category: service.category,
       icon: service.icon,
       priceCOP: service.priceCOP,
       description: service.description,
@@ -147,6 +156,7 @@ export default function Services() {
       setEditingService(null);
       form.reset({
         name: '',
+        category: '',
         icon: '',
         priceCOP: 0,
         description: '',
@@ -203,6 +213,29 @@ export default function Services() {
                         <FormControl>
                           <Input {...field} data-testid="input-service-name" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoría</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-service-category">
+                              <SelectValue placeholder="Selecciona una categoría" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Servicios Individuales">Servicios Individuales</SelectItem>
+                            <SelectItem value="Combos de dos servicios">Combos de dos servicios</SelectItem>
+                            <SelectItem value="Combos de tres servicios">Combos de tres servicios</SelectItem>
+                            <SelectItem value="Combo completo">Combo completo</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -319,10 +352,11 @@ export default function Services() {
             </div>
           ) : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[700px]">
+              <Table className="min-w-[850px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[140px]">Nombre</TableHead>
+                  <TableHead className="min-w-[150px]">Categoría</TableHead>
                   <TableHead className="min-w-[60px]">Icono</TableHead>
                   <TableHead className="min-w-[100px] whitespace-nowrap">Precio</TableHead>
                   <TableHead className="min-w-[110px] whitespace-nowrap">Duración (min)</TableHead>
@@ -333,7 +367,7 @@ export default function Services() {
               <TableBody>
                 {services?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No hay servicios
                     </TableCell>
                   </TableRow>
@@ -342,6 +376,9 @@ export default function Services() {
                     <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
                       <TableCell className="font-medium" data-testid="text-service-name">
                         {service.name}
+                      </TableCell>
+                      <TableCell data-testid="text-service-category">
+                        <Badge variant="outline">{service.category}</Badge>
                       </TableCell>
                       <TableCell className="text-2xl" data-testid="text-service-icon">
                         {service.icon}
