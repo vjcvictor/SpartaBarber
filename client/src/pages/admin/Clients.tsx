@@ -20,30 +20,31 @@ export default function Clients() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Clientes</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Clientes</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Todos los clientes registrados
           </p>
         </div>
 
         <Card>
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
-            <Table>
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Total Citas</TableHead>
-                  <TableHead>Notas</TableHead>
+                  <TableHead className="min-w-[150px]">Nombre</TableHead>
+                  <TableHead className="min-w-[180px]">Email</TableHead>
+                  <TableHead className="min-w-[120px] whitespace-nowrap">Teléfono</TableHead>
+                  <TableHead className="min-w-[100px] whitespace-nowrap">Total Citas</TableHead>
+                  <TableHead className="min-w-[150px]">Notas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -59,10 +60,10 @@ export default function Clients() {
                       <TableCell className="font-medium" data-testid="text-client-name">
                         {client.fullName}
                       </TableCell>
-                      <TableCell data-testid="text-client-email">
+                      <TableCell className="whitespace-nowrap" data-testid="text-client-email">
                         {client.email}
                       </TableCell>
-                      <TableCell data-testid="text-client-phone">
+                      <TableCell className="whitespace-nowrap" data-testid="text-client-phone">
                         {client.phoneE164}
                       </TableCell>
                       <TableCell>
@@ -78,6 +79,7 @@ export default function Clients() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </Card>
       </div>

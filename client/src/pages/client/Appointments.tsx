@@ -99,19 +99,19 @@ export default function ClientAppointments() {
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-3xl font-bold">Mis Citas</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Mis Citas</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Visualiza y gestiona todas tus citas
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[200px]" data-testid="select-status-filter">
+            <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-status-filter">
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
@@ -128,22 +128,23 @@ export default function ClientAppointments() {
 
         <Card>
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
             <>
-              <Table>
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha y Hora</TableHead>
-                    <TableHead>Barbero</TableHead>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acciones</TableHead>
+                    <TableHead className="min-w-[130px] whitespace-nowrap">Fecha y Hora</TableHead>
+                    <TableHead className="min-w-[100px]">Barbero</TableHead>
+                    <TableHead className="min-w-[120px]">Servicio</TableHead>
+                    <TableHead className="min-w-[90px] whitespace-nowrap">Precio</TableHead>
+                    <TableHead className="min-w-[90px]">Estado</TableHead>
+                    <TableHead className="min-w-[110px]">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -156,7 +157,7 @@ export default function ClientAppointments() {
                   ) : (
                     paginatedAppointments.map((appt) => (
                       <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell className="font-medium" data-testid="text-appointment-datetime">
+                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
                           {formatDateTime(appt.startDateTime)}
                         </TableCell>
                         <TableCell data-testid="text-barber-name">
@@ -165,7 +166,7 @@ export default function ClientAppointments() {
                         <TableCell data-testid="text-service-name">
                           {appt.service?.name || 'N/A'}
                         </TableCell>
-                        <TableCell data-testid="text-service-price">
+                        <TableCell className="whitespace-nowrap" data-testid="text-service-price">
                           ${appt.service?.priceCOP?.toLocaleString('es-CO') || '0'}
                         </TableCell>
                         <TableCell>
@@ -190,9 +191,10 @@ export default function ClientAppointments() {
                   )}
                 </TableBody>
               </Table>
+              </div>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between p-4 border-t">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 sm:p-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     Página {page} de {totalPages}
                   </p>

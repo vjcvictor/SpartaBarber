@@ -234,11 +234,11 @@ export default function Barbers() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-3xl font-bold">Barberos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Barberos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gestiona el equipo de barberos
             </p>
           </div>
@@ -395,19 +395,20 @@ export default function Barbers() {
 
         <Card>
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
-            <Table>
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Servicios</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="min-w-[150px]">Nombre</TableHead>
+                  <TableHead className="min-w-[180px]">Email</TableHead>
+                  <TableHead className="min-w-[200px]">Servicios</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -423,7 +424,7 @@ export default function Barbers() {
                       <TableCell className="font-medium" data-testid="text-barber-name">
                         {barber.name}
                       </TableCell>
-                      <TableCell data-testid="text-barber-email">
+                      <TableCell className="whitespace-nowrap" data-testid="text-barber-email">
                         {barber.email}
                       </TableCell>
                       <TableCell>
@@ -464,6 +465,7 @@ export default function Barbers() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </Card>
       </div>

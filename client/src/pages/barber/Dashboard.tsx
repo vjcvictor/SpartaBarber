@@ -356,14 +356,15 @@ export default function BarberDashboard() {
                 <Skeleton className="h-12 w-full" />
               </div>
             ) : (
-              <Table>
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Hora</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableHead className="min-w-[100px] whitespace-nowrap">Fecha</TableHead>
+                    <TableHead className="min-w-[80px] whitespace-nowrap">Hora</TableHead>
+                    <TableHead className="min-w-[120px]">Cliente</TableHead>
+                    <TableHead className="min-w-[100px]">Servicio</TableHead>
+                    <TableHead className="min-w-[90px]">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -376,10 +377,10 @@ export default function BarberDashboard() {
                   ) : (
                     filteredAppointments.map((appt) => (
                       <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell data-testid="text-appointment-date">
+                        <TableCell className="whitespace-nowrap" data-testid="text-appointment-date">
                           {formatDate(appt.startDateTime)}
                         </TableCell>
-                        <TableCell className="font-medium" data-testid="text-appointment-time">
+                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-time">
                           {formatDateTime(appt.startDateTime)}
                         </TableCell>
                         <TableCell data-testid="text-client-name">
@@ -396,6 +397,7 @@ export default function BarberDashboard() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

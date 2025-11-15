@@ -168,11 +168,11 @@ export default function Services() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-3xl font-bold">Servicios</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Servicios</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gestiona los servicios de la barbería
             </p>
           </div>
@@ -312,21 +312,22 @@ export default function Services() {
 
         <Card>
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : (
-            <Table>
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Icono</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Duración (min)</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
+                  <TableHead className="min-w-[140px]">Nombre</TableHead>
+                  <TableHead className="min-w-[60px]">Icono</TableHead>
+                  <TableHead className="min-w-[100px] whitespace-nowrap">Precio</TableHead>
+                  <TableHead className="min-w-[110px] whitespace-nowrap">Duración (min)</TableHead>
+                  <TableHead className="min-w-[90px]">Estado</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -345,10 +346,10 @@ export default function Services() {
                       <TableCell className="text-2xl" data-testid="text-service-icon">
                         {service.icon}
                       </TableCell>
-                      <TableCell data-testid="text-service-price">
+                      <TableCell className="whitespace-nowrap" data-testid="text-service-price">
                         ${service.priceCOP.toLocaleString('es-CO')}
                       </TableCell>
-                      <TableCell data-testid="text-service-duration">
+                      <TableCell className="whitespace-nowrap" data-testid="text-service-duration">
                         {service.durationMin}
                       </TableCell>
                       <TableCell>
@@ -382,6 +383,7 @@ export default function Services() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </Card>
       </div>

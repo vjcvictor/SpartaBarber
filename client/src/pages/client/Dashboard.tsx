@@ -63,13 +63,13 @@ export default function ClientDashboard() {
 
   return (
     <ClientLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold" data-testid="text-welcome-client">
+            <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-welcome-client">
               Bienvenido, {stats?.clientName || 'Cliente'}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gestiona tus citas y reserva nuevos servicios
             </p>
           </div>
@@ -146,13 +146,14 @@ export default function ClientDashboard() {
                 <Skeleton className="h-12 w-full" />
               </div>
             ) : (
-              <Table>
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[550px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha y Hora</TableHead>
-                    <TableHead>Barbero</TableHead>
-                    <TableHead>Servicio</TableHead>
-                    <TableHead>Estado</TableHead>
+                    <TableHead className="min-w-[140px] whitespace-nowrap">Fecha y Hora</TableHead>
+                    <TableHead className="min-w-[100px]">Barbero</TableHead>
+                    <TableHead className="min-w-[100px]">Servicio</TableHead>
+                    <TableHead className="min-w-[90px]">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -165,7 +166,7 @@ export default function ClientDashboard() {
                   ) : (
                     upcomingAppointments.map((appt) => (
                       <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell className="font-medium" data-testid="text-appointment-datetime">
+                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
                           {formatDateTime(appt.startDateTime)}
                         </TableCell>
                         <TableCell data-testid="text-barber-name">
@@ -182,6 +183,7 @@ export default function ClientDashboard() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
