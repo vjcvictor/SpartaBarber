@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import AdminLayout from '@/components/AdminLayout';
 import {
@@ -22,7 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle, CheckCircle } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { XCircle, CheckCircle, MoreVertical, Edit, Calendar, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { Appointment } from '@shared/schema';
@@ -90,17 +97,41 @@ export default function Appointments() {
     return true;
   }) || [];
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
-      case 'completado':
+      case 'agendado':
         return 'default';
+      case 'reagendado':
+        return 'secondary';
+      case 'completado':
+        return 'outline';
       case 'cancelado':
         return 'destructive';
-      case 'agendado':
-      case 'reagendado':
       default:
         return 'secondary';
     }
+  };
+
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'agendado':
+        return 'bg-green-500/10 text-green-700 dark:text-green-400 hover-elevate';
+      case 'reagendado':
+        return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover-elevate';
+      case 'completado':
+        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 hover-elevate';
+      case 'cancelado':
+        return 'bg-red-500/10 text-red-700 dark:text-red-400 hover-elevate';
+      default:
+        return '';
+    }
+  };
+
+  const canEditAppointment = (appointmentDateTime: string): boolean => {
+    const now = new Date();
+    const appointmentDate = new Date(appointmentDateTime);
+    const minutesUntilAppointment = differenceInMinutes(appointmentDate, now);
+    return minutesUntilAppointment > 60;
   };
 
   const paginatedAppointments = filteredAppointments.slice(
@@ -194,44 +225,71 @@ export default function Appointments() {
                           {formatDateTime(appointment.startDateTime)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant={getStatusBadgeVariant(appointment.status)}
-                              data-testid="badge-appointment-status"
-                            >
-                              {appointment.status}
-                            </Badge>
-                          </div>
+                          <Badge
+                            className={getStatusColor(appointment.status)}
+                            data-testid="badge-appointment-status"
+                          >
+                            {appointment.status}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1 sm:gap-2">
-                            {appointment.status !== 'completado' && appointment.status !== 'cancelado' && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => updateStatusMutation.mutate({ id: appointment.id, status: 'completado' })}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                data-testid={`button-actions-${appointment.id.substring(0, 8)}`}
                                 disabled={updateStatusMutation.isPending || cancelMutation.isPending}
-                                data-testid={`button-complete-appointment-${appointment.id.substring(0, 8)}`}
-                                className="text-xs whitespace-nowrap w-full sm:w-auto"
                               >
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                {updateStatusMutation.isPending ? 'Marcando...' : 'Completar'}
+                                <MoreVertical className="w-4 h-4" />
                               </Button>
-                            )}
-                            {appointment.status !== 'cancelado' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => cancelMutation.mutate(appointment.id)}
-                                disabled={cancelMutation.isPending || updateStatusMutation.isPending}
-                                data-testid={`button-cancel-appointment-${appointment.id.substring(0, 8)}`}
-                                className="text-xs whitespace-nowrap w-full sm:w-auto"
-                              >
-                                <XCircle className="w-3 h-3 mr-1" />
-                                {cancelMutation.isPending ? 'Cancelando...' : 'Cancelar'}
-                              </Button>
-                            )}
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {appointment.status !== 'completado' && appointment.status !== 'cancelado' && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (!canEditAppointment(appointment.startDateTime)) {
+                                        toast({
+                                          title: 'No se puede reagendar',
+                                          description: 'No se pueden reagendar citas con menos de 1 hora de anticipación',
+                                          variant: 'destructive',
+                                        });
+                                        return;
+                                      }
+                                      updateStatusMutation.mutate({ id: appointment.id, status: 'reagendado' });
+                                    }}
+                                    disabled={!canEditAppointment(appointment.startDateTime)}
+                                    data-testid={`menu-item-reschedule-${appointment.id.substring(0, 8)}`}
+                                  >
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    Reagendar
+                                    {!canEditAppointment(appointment.startDateTime) && (
+                                      <AlertCircle className="w-3 h-3 ml-2 text-destructive" />
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => updateStatusMutation.mutate({ id: appointment.id, status: 'completado' })}
+                                    data-testid={`menu-item-complete-${appointment.id.substring(0, 8)}`}
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Marcar completado
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              {appointment.status !== 'cancelado' && (
+                                <DropdownMenuItem
+                                  onClick={() => cancelMutation.mutate(appointment.id)}
+                                  className="text-destructive focus:text-destructive"
+                                  data-testid={`menu-item-cancel-${appointment.id.substring(0, 8)}`}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Cancelar cita
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
