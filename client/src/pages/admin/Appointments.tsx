@@ -52,6 +52,7 @@ export default function Appointments() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
       toast({
         title: 'Cita cancelada',
         description: 'La cita se ha cancelado correctamente',

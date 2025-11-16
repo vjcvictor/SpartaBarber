@@ -3,26 +3,39 @@
 ## Overview
 Barbería Sparta is a full-stack appointment booking system for a Colombian barbershop. It allows clients to book appointments online through a multi-step flow and provides admin/barber staff with tools to manage services, schedules, appointments, and clients. Key features include real-time availability, WhatsApp and push notifications, and comprehensive audit logging. The project aims to provide a professional and efficient booking experience, enhancing customer satisfaction and streamlining barbershop operations.
 
-**Recent Updates (Nov 15, 2025):** 
+**Recent Updates (Nov 16, 2025):** 
+- **Appointment Management UX Improvements:**
+  - Consolidated all appointment actions into a single DropdownMenu (3-dot icon) with options: Reagendar, Marcar completado, and Cancelar cita
+  - Added 1-hour validation rule: appointments cannot be rescheduled if less than 60 minutes remain before start time
+  - Visual indicators show when rescheduling is disabled (AlertCircle icon) with toast notification explaining the restriction
+  - Improved status badge colors for better visual distinction:
+    - Agendado: Green (bg-green-500/10 text-green-700)
+    - Reagendado: Yellow (bg-yellow-500/10 text-yellow-700)
+    - Completado: Blue (bg-blue-500/10 text-blue-700)
+    - Cancelado: Red (bg-red-500/10 text-red-700)
+  - All status changes automatically invalidate TanStack Query caches for appointments and statistics
+  - Existing PUT /api/admin/appointments/:id endpoint supports all status transitions with audit logging
+
+**Previous Updates (Nov 15, 2025):** 
 - Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
 - Service categorization feature: Services now include a `category` field with 4 predefined categories. Admin UI updated to manage categories, and booking flow displays services grouped and sorted by category (fewest to most services per category).
-- **Multi-Country Phone Support (Nov 15, 2025):**
+- **Multi-Country Phone Support:**
   - Registration (AuthDialog) and booking (ClientForm) forms now include country selector with flag emojis
   - Supported countries: Colombia 🇨🇴 (+57), Venezuela 🇻🇪 (+58), USA 🇺🇸 (+1), Mexico 🇲🇽 (+52), Spain 🇪🇸 (+34)
   - Phone validation uses libphonenumber-js with country-specific rules
   - Country code to ISO mapping: +57→CO, +58→VE, +1→US, +52→MX, +34→ES
   - Default country: Colombia (+57)
-- **Client Form Draft State (Nov 15, 2025):**
+- **Client Form Draft State:**
   - Implemented draft state pattern in Zustand store to prevent form autocomplete bugs
   - Draft state includes `clientDraft`, `clientDraftVersion`, `hasUserEditedDraft` flag
   - Hydration actions: `hydrateClientDraft()`, `patchClientDraft()`, `commitClientData()`
   - User edit guard prevents rehydration on window focus/query refetch
   - Resolves "Maximum update depth exceeded" infinite loop and form reset issues
-- **Database Persistence Verification (Nov 15, 2025):**
+- **Database Persistence Verification:**
   - Confirmed SQLite database (data/app.db) working correctly
   - Admin changes to barbers/services persist properly
   - 15 active services and 2 barbers in production database
-- **Booking Flow UX Enhancements (Nov 15, 2025):**
+- **Booking Flow UX Enhancements:**
   - Service catalog refined to exactly 15 services across 4 categories (removed "Corte Clásico" and "Limpieza Facial")
   - Category display order updated: Combo completo → Combos de tres → Combos de dos → Servicios Individuales (most comprehensive to individual)
   - Compact design: Reduced padding (p-6→p-4), smaller icons (w-8→w-6), tighter gaps (gap-4→gap-3), smaller typography for better mobile experience
