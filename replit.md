@@ -3,18 +3,32 @@
 ## Overview
 Barbería Sparta is a full-stack appointment booking system for a Colombian barbershop. It allows clients to book appointments online through a multi-step flow and provides admin/barber staff with tools to manage services, schedules, appointments, and clients. Key features include real-time availability, WhatsApp and push notifications, and comprehensive audit logging. The project aims to provide a professional and efficient booking experience, enhancing customer satisfaction and streamlining barbershop operations.
 
-**Recent Updates (Nov 16, 2025):** 
+**Recent Updates (Nov 17, 2025):**
+- **Centralized Appointment State Validation Service:**
+  - Created `server/services/appointmentValidation.ts` with timezone-aware validation logic (America/Bogota)
+  - `canMarkAsCompleted()`: Validates appointments can only be marked "completado" after scheduled time
+  - `canCancelAppointment()`: Blocks cancellations if less than 60 minutes remain before start time
+  - `canRescheduleAppointment()`: Blocks rescheduling if less than 60 minutes remain before start time
+  - `validateStateTransition()`: Orchestrates all validations and enforces business rules across all state changes
+  - Applied validations in all appointment endpoints: admin PUT, barber PATCH, client PUT/DELETE
+- **Rescheduling Modal Implementation:**
+  - Created reusable `RescheduleDialog` component with date picker and time slot selection
+  - Modal integrates with existing `calculateAvailableSlots` service to show only available times
+  - Integrated in all three panels (admin, barber, client) with role-specific API endpoints
+  - Barber endpoint PATCH `/api/barber/appointments/:id` extended to support `startDateTime` changes
+  - Automatic endDateTime recalculation based on service duration
+  - Comprehensive cache invalidation after successful reschedule (appointments + stats queries)
+  - UI shows visual indicators (AlertCircle icon) when reschedule is disabled with explanatory toast
+
+**Previous Updates (Nov 16, 2025):** 
 - **Appointment Management UX Improvements:**
   - Consolidated all appointment actions into a single DropdownMenu (3-dot icon) with options: Reagendar, Marcar completado, and Cancelar cita
-  - Added 1-hour validation rule: appointments cannot be rescheduled if less than 60 minutes remain before start time
-  - Visual indicators show when rescheduling is disabled (AlertCircle icon) with toast notification explaining the restriction
   - Improved status badge colors for better visual distinction:
     - Agendado: Green (bg-green-500/10 text-green-700)
     - Reagendado: Yellow (bg-yellow-500/10 text-yellow-700)
     - Completado: Blue (bg-blue-500/10 text-blue-700)
     - Cancelado: Red (bg-red-500/10 text-red-700)
   - All status changes automatically invalidate TanStack Query caches for appointments and statistics
-  - Existing PUT /api/admin/appointments/:id endpoint supports all status transitions with audit logging
 
 **Previous Updates (Nov 15, 2025):** 
 - Complete responsive design implementation across all tables and dashboards. Application is now 100% mobile-friendly with no horizontal overflow on any screen size (320px-1920px).
