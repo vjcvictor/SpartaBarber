@@ -313,9 +313,9 @@ router.get('/api/barbers', apiLimiter, async (req: Request, res: Response) => {
 
 router.post('/api/availability', apiLimiter, async (req: Request, res: Response) => {
   try {
-    const { serviceId, barberId, date } = availabilityRequestSchema.parse(req.body);
+    const { serviceId, barberId, date, excludeAppointmentId } = availabilityRequestSchema.parse(req.body);
 
-    const slots = await calculateAvailableSlots(serviceId, barberId, date);
+    const slots = await calculateAvailableSlots(serviceId, barberId, date, excludeAppointmentId);
 
     res.json(slots);
   } catch (error) {

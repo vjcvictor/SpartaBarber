@@ -125,6 +125,7 @@ export const availabilityRequestSchema = z.object({
   serviceId: z.string().uuid(),
   barberId: z.string().uuid(),
   date: z.string(), // "2025-11-10"
+  excludeAppointmentId: z.string().uuid().optional(), // Optional: exclude this appointment when calculating (for rescheduling)
 });
 
 export type AvailabilityRequest = z.infer<typeof availabilityRequestSchema>;

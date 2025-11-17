@@ -57,6 +57,7 @@ export default function RescheduleDialog({
         serviceId,
         barberId,
         date: dateStr,
+        excludeAppointmentId: appointmentId,
       });
       return res.json();
     },

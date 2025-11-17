@@ -8,7 +8,8 @@ const TIMEZONE = 'America/Bogota';
 export async function calculateAvailableSlots(
   serviceId: string,
   barberId: string,
-  dateStr: string // "2025-11-10"
+  dateStr: string, // "2025-11-10"
+  excludeAppointmentId?: string // Optional: exclude this appointment when calculating availability (for rescheduling)
 ): Promise<TimeSlot[]> {
   // Get service duration
   const service = await prisma.service.findUnique({
@@ -85,6 +86,12 @@ export async function calculateAvailableSlots(
       status: {
         in: ['agendado', 'reagendado'],
       },
+      // Exclude the appointment being rescheduled
+      ...(excludeAppointmentId && {
+        id: {
+          not: excludeAppointmentId,
+        },
+      }),
     },
     select: {
       startDateTime: true,
