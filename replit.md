@@ -14,6 +14,7 @@ Barbería Sparta is a full-stack appointment booking system for a Colombian barb
 - **Rescheduling Modal Implementation:**
   - Created reusable `RescheduleDialog` component with date picker and time slot selection
   - Modal integrates with existing `calculateAvailableSlots` service to show only available times
+  - **Smart Availability**: When rescheduling, the system excludes the current appointment from occupancy calculation, allowing the same time slot to be selected (e.g., moving 3:00 PM → 3:30 PM without blocking the 3:00 PM slot)
   - Integrated in all three panels (admin, barber, client) with role-specific API endpoints
   - Barber endpoint PATCH `/api/barber/appointments/:id` extended to support `startDateTime` changes
   - Automatic endDateTime recalculation based on service duration
