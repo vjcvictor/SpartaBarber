@@ -9,6 +9,12 @@ import logger from './lib/logger';
 import { authMiddleware, requireRole, requireBarberAccess, type AuthRequest } from './middleware/auth';
 import { createAuditLog } from './middleware/audit';
 import { calculateAvailableSlots } from './services/availability';
+import { 
+  validateStateTransition,
+  canCancelAppointment,
+  canRescheduleAppointment,
+  canMarkAsCompleted
+} from './services/appointmentValidation';
 import {
   loginSchema,
   registerSchema,
@@ -536,23 +542,20 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
       return res.status(404).json({ error: 'Cita no encontrada' });
     }
 
-    // Check if appointment can be cancelled (must be at least 1 hour before)
-    const now = new Date();
-    const appointmentTime = appointment.startDateTime;
-    const oneHourBefore = subHours(appointmentTime, 1);
-
-    if (isBefore(now, oneHourBefore)) {
-      await prisma.appointment.update({
-        where: { id },
-        data: { status: 'cancelado' },
-      });
-
-      await createAuditLog(null, 'CLIENT', 'update', 'appointment', id, { status: 'cancelado' }, req);
-
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ error: 'Las citas solo pueden cancelarse con al menos 1 hora de anticipación' });
+    // Validate if appointment can be cancelled
+    const validation = canCancelAppointment(appointment.startDateTime);
+    if (!validation.allowed) {
+      return res.status(400).json({ error: validation.reason });
     }
+
+    await prisma.appointment.update({
+      where: { id },
+      data: { status: 'cancelado' },
+    });
+
+    await createAuditLog(null, 'CLIENT', 'update', 'appointment', id, { status: 'cancelado' }, req);
+
+    res.json({ success: true });
   } catch (error) {
     logger.error('Cancel appointment error:', error);
     res.status(500).json({ error: 'Error al cancelar la cita' });
@@ -579,30 +582,19 @@ router.put(
         return res.status(404).json({ error: 'Cita no encontrada' });
       }
 
-      // Validate 1-hour restriction for status changes
-      // Only apply if changing status and NOT marking as 'completado'
-      if (data.status && data.status !== 'completado' && data.status !== appointment.status) {
-        const now = new Date();
-        const appointmentTime = appointment.startDateTime;
-        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-
-        if (isBefore(appointmentTime, oneHourFromNow)) {
-          return res.status(400).json({
-            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
-          });
+      // Validate state transition if status is being changed
+      if (data.status && data.status !== appointment.status) {
+        const validation = validateStateTransition(appointment.status, data.status, appointment.startDateTime);
+        if (!validation.allowed) {
+          return res.status(400).json({ error: validation.reason });
         }
       }
 
-      // Validate 1-hour restriction for rescheduling
+      // Validate rescheduling if startDateTime is being changed
       if (data.startDateTime && data.startDateTime !== appointment.startDateTime.toISOString()) {
-        const now = new Date();
-        const appointmentTime = appointment.startDateTime;
-        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-
-        if (isBefore(appointmentTime, oneHourFromNow)) {
-          return res.status(400).json({
-            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
-          });
+        const validation = canRescheduleAppointment(appointment.startDateTime);
+        if (!validation.allowed) {
+          return res.status(400).json({ error: validation.reason });
         }
       }
 
@@ -911,9 +903,9 @@ router.patch(
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, startDateTime } = req.body;
 
-      if (!['agendado', 'cancelado', 'reagendado', 'completado'].includes(status)) {
+      if (status && !['agendado', 'cancelado', 'reagendado', 'completado'].includes(status)) {
         return res.status(400).json({ error: 'Estado inválido' });
       }
 
@@ -937,6 +929,9 @@ router.patch(
       // Verify appointment belongs to barber
       const appointment = await prisma.appointment.findUnique({
         where: { id },
+        include: {
+          service: true,
+        },
       });
 
       if (!appointment) {
@@ -947,23 +942,53 @@ router.patch(
         return res.status(403).json({ error: 'No tienes permiso para modificar esta cita' });
       }
 
-      // Validate 1-hour restriction for status changes
-      // Only apply if changing status and NOT marking as 'completado'
-      if (status !== 'completado' && status !== appointment.status) {
-        const now = new Date();
-        const appointmentTime = appointment.startDateTime;
-        const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+      // Validate state transition
+      if (status && status !== appointment.status) {
+        const validation = validateStateTransition(appointment.status, status, appointment.startDateTime);
+        if (!validation.allowed) {
+          return res.status(400).json({ error: validation.reason });
+        }
+      }
 
-        if (isBefore(appointmentTime, oneHourFromNow)) {
-          return res.status(400).json({
-            error: 'No se puede modificar una cita con menos de 1 hora de anticipación'
+      // Validate rescheduling if startDateTime is being changed
+      if (startDateTime && startDateTime !== appointment.startDateTime.toISOString()) {
+        const validation = canRescheduleAppointment(appointment.startDateTime);
+        if (!validation.allowed) {
+          return res.status(400).json({ error: validation.reason });
+        }
+      }
+
+      // Build update data
+      const updateData: any = {};
+      if (status !== undefined) updateData.status = status;
+
+      // If changing startDateTime, also update endDateTime
+      if (startDateTime) {
+        const newStartDate = parseISO(startDateTime);
+        const newEndDate = addMinutes(newStartDate, appointment.service.durationMin);
+        updateData.startDateTime = newStartDate;
+        updateData.endDateTime = newEndDate;
+
+        // Check availability for the new slot
+        const dateStr = format(newStartDate, 'yyyy-MM-dd');
+        const availableSlots = await calculateAvailableSlots(appointment.serviceId, appointment.barberId, dateStr);
+        const requestedTime = format(newStartDate, 'HH:mm');
+        
+        const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
+        
+        if (!isAvailable) {
+          logger.warn('Slot not available for reschedule', { 
+            barberId: appointment.barberId, 
+            newStartDate: newStartDate.toISOString(), 
+            requestedTime,
           });
+          return res.status(400).json({ error: 'El horario seleccionado no está disponible' });
         }
       }
 
       const updated = await prisma.appointment.update({
         where: { id },
-        data: { status },
+        data: updateData,
       });
 
       // Log with appropriate role (ADMIN if admin-barber, BARBER otherwise)
@@ -973,7 +998,7 @@ router.patch(
         'update',
         'appointment',
         id,
-        { status, actingAsBarber: req.user!.role === 'ADMIN' },
+        { ...updateData, actingAsBarber: req.user!.role === 'ADMIN' },
         req
       );
 

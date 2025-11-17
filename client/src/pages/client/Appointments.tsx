@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import ClientLayout from '@/components/ClientLayout';
+import RescheduleDialog from '@/components/RescheduleDialog';
 import {
   Table,
   TableBody,
@@ -22,7 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle } from 'lucide-react';
+import { XCircle, Calendar, AlertCircle, MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { Appointment } from '@shared/schema';
@@ -33,6 +41,8 @@ const PAGE_SIZE = 10;
 export default function ClientAppointments() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const { toast } = useToast();
 
   const { data: appointments, isLoading } = useQuery<Appointment[]>({
@@ -77,25 +87,27 @@ export default function ClientAppointments() {
     return format(zonedDate, 'dd/MM/yyyy HH:mm');
   }
 
-  function getStatusBadge(status: string) {
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case 'agendado':
-        return <Badge data-testid={`badge-status-${status}`}>Agendado</Badge>;
-      case 'cancelado':
-        return <Badge variant="destructive" data-testid={`badge-status-${status}`}>Cancelado</Badge>;
+        return 'bg-green-500/10 text-green-700 dark:text-green-400 hover-elevate';
       case 'reagendado':
-        return <Badge variant="secondary" data-testid={`badge-status-${status}`}>Reagendado</Badge>;
+        return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover-elevate';
+      case 'completado':
+        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 hover-elevate';
+      case 'cancelado':
+        return 'bg-red-500/10 text-red-700 dark:text-red-400 hover-elevate';
       default:
-        return <Badge variant="outline" data-testid={`badge-status-${status}`}>{status}</Badge>;
+        return '';
     }
-  }
+  };
 
-  function canCancel(appt: Appointment): boolean {
+  const canEditAppointment = (appointmentDateTime: string): boolean => {
     const now = new Date();
-    const apptDate = new Date(appt.startDateTime);
-    const oneHourBefore = new Date(apptDate.getTime() - 60 * 60 * 1000);
-    return now < oneHourBefore && (appt.status === 'agendado' || appt.status === 'reagendado');
-  }
+    const appointmentDate = new Date(appointmentDateTime);
+    const minutesUntilAppointment = differenceInMinutes(appointmentDate, now);
+    return minutesUntilAppointment > 60;
+  };
 
   return (
     <ClientLayout>
@@ -170,21 +182,79 @@ export default function ClientAppointments() {
                           ${appt.service?.priceCOP?.toLocaleString('es-CO') || '0'}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(appt.status)}
+                          <Badge
+                            className={getStatusColor(appt.status)}
+                            data-testid="badge-appointment-status"
+                          >
+                            {appt.status}
+                          </Badge>
                         </TableCell>
-                        <TableCell>
-                          {canCancel(appt) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => cancelMutation.mutate(appt.id)}
-                              disabled={cancelMutation.isPending}
-                              data-testid={`button-cancel-${appt.id}`}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Cancelar
-                            </Button>
-                          )}
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                data-testid={`button-actions-${appt.id.substring(0, 8)}`}
+                                disabled={cancelMutation.isPending}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {appt.status !== 'completado' && appt.status !== 'cancelado' && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (!canEditAppointment(appt.startDateTime)) {
+                                        toast({
+                                          title: 'No se puede reagendar',
+                                          description: 'No se pueden reagendar citas con menos de 1 hora de anticipación',
+                                          variant: 'destructive',
+                                        });
+                                        return;
+                                      }
+                                      setSelectedAppointment(appt);
+                                      setRescheduleDialogOpen(true);
+                                    }}
+                                    disabled={!canEditAppointment(appt.startDateTime)}
+                                    data-testid={`menu-item-reschedule-${appt.id.substring(0, 8)}`}
+                                  >
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    Reagendar
+                                    {!canEditAppointment(appt.startDateTime) && (
+                                      <AlertCircle className="w-3 h-3 ml-2 text-destructive" />
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              {appt.status !== 'cancelado' && (
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (!canEditAppointment(appt.startDateTime)) {
+                                      toast({
+                                        title: 'No se puede cancelar',
+                                        description: 'No se pueden cancelar citas con menos de 1 hora de anticipación',
+                                        variant: 'destructive',
+                                      });
+                                      return;
+                                    }
+                                    cancelMutation.mutate(appt.id);
+                                  }}
+                                  className="text-destructive focus:text-destructive"
+                                  data-testid={`menu-item-cancel-${appt.id.substring(0, 8)}`}
+                                  disabled={!canEditAppointment(appt.startDateTime)}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Cancelar cita
+                                  {!canEditAppointment(appt.startDateTime) && (
+                                    <AlertCircle className="w-3 h-3 ml-2" />
+                                  )}
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -224,6 +294,18 @@ export default function ClientAppointments() {
           )}
         </Card>
       </div>
+
+      {selectedAppointment && (
+        <RescheduleDialog
+          open={rescheduleDialogOpen}
+          onOpenChange={setRescheduleDialogOpen}
+          appointmentId={selectedAppointment.id}
+          serviceId={selectedAppointment.service?.id || ''}
+          barberId={selectedAppointment.barber?.id || ''}
+          currentStartDateTime={selectedAppointment.startDateTime}
+          role="client"
+        />
+      )}
     </ClientLayout>
   );
 }

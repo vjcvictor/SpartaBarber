@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { format, differenceInMinutes } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import AdminLayout from '@/components/AdminLayout';
+import RescheduleDialog from '@/components/RescheduleDialog';
 import {
   Table,
   TableBody,
@@ -40,6 +41,8 @@ const PAGE_SIZE = 10;
 export default function Appointments() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const { toast } = useToast();
 
   const { data: appointments, isLoading } = useQuery<Appointment[]>({
@@ -258,7 +261,8 @@ export default function Appointments() {
                                         });
                                         return;
                                       }
-                                      updateStatusMutation.mutate({ id: appointment.id, status: 'reagendado' });
+                                      setSelectedAppointment(appointment);
+                                      setRescheduleDialogOpen(true);
                                     }}
                                     disabled={!canEditAppointment(appointment.startDateTime)}
                                     data-testid={`menu-item-reschedule-${appointment.id.substring(0, 8)}`}
@@ -330,6 +334,18 @@ export default function Appointments() {
           )}
         </Card>
       </div>
+
+      {selectedAppointment && (
+        <RescheduleDialog
+          open={rescheduleDialogOpen}
+          onOpenChange={setRescheduleDialogOpen}
+          appointmentId={selectedAppointment.id}
+          serviceId={selectedAppointment.service?.id || ''}
+          barberId={selectedAppointment.barber?.id || ''}
+          currentStartDateTime={selectedAppointment.startDateTime}
+          role="admin"
+        />
+      )}
     </AdminLayout>
   );
 }
