@@ -11,6 +11,42 @@ export async function calculateAvailableSlots(
   dateStr: string, // "2025-11-10"
   excludeAppointmentId?: string // Optional: exclude this appointment when calculating availability (for rescheduling)
 ): Promise<TimeSlot[]> {
+  // Handle "any" barber selection
+  if (barberId === 'any') {
+    const barbers = await prisma.barber.findMany({
+      select: { id: true }
+    });
+
+    let allSlots: TimeSlot[] = [];
+
+    // Calculate slots for each barber
+    for (const barber of barbers) {
+      try {
+        const slots = await calculateAvailableSlots(serviceId, barber.id, dateStr, excludeAppointmentId);
+        // Add barberId to slots so we know who to assign
+        const slotsWithBarber = slots.map(s => ({ ...s, barberId: barber.id }));
+        allSlots = [...allSlots, ...slotsWithBarber];
+      } catch (error) {
+        // Ignore errors for individual barbers (e.g. if one has invalid schedule)
+        console.error(`Error calculating slots for barber ${barber.id}:`, error);
+      }
+    }
+
+    // Deduplicate slots by start time, keeping the first available barber found
+    const uniqueSlotsMap = new Map<string, TimeSlot>();
+
+    // Sort all slots to ensure consistent selection order (optional)
+    allSlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    for (const slot of allSlots) {
+      if (!uniqueSlotsMap.has(slot.startTime)) {
+        uniqueSlotsMap.set(slot.startTime, slot);
+      }
+    }
+
+    return Array.from(uniqueSlotsMap.values()).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
   // Get service duration
   const service = await prisma.service.findUnique({
     where: { id: serviceId },
@@ -48,7 +84,7 @@ export async function calculateAvailableSlots(
 
   // Get day schedule
   let daySchedule: WeeklySchedule | undefined;
-  
+
   if (exception && exception.start && exception.end) {
     // Use exception schedule
     daySchedule = {

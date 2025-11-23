@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -46,7 +45,7 @@ export default function WeeklyScheduleEditor({ value, onChange }: WeeklySchedule
   };
 
   const updateDaySchedule = (dayOfWeek: number, updates: Partial<WeeklySchedule>) => {
-    onChange(value.map(s => 
+    onChange(value.map(s =>
       s.dayOfWeek === dayOfWeek ? { ...s, ...updates } : s
     ));
   };
@@ -55,7 +54,21 @@ export default function WeeklyScheduleEditor({ value, onChange }: WeeklySchedule
     const daySchedule = getDaySchedule(dayOfWeek);
     if (!daySchedule) return;
 
-    const newBreak = { start: '12:00', end: '13:00' };
+    // Find the last break's end time, or use 12:00 as default
+    let suggestedStart = '12:00';
+    if (daySchedule.breaks.length > 0) {
+      const lastBreak = daySchedule.breaks[daySchedule.breaks.length - 1];
+      suggestedStart = lastBreak.end;
+    }
+
+    // Suggest 1 hour break
+    const [hours, minutes] = suggestedStart.split(':').map(Number);
+    const startDate = new Date(2000, 0, 1, hours, minutes);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hour
+
+    const suggestedEnd = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+    const newBreak = { start: suggestedStart, end: suggestedEnd };
     updateDaySchedule(dayOfWeek, {
       breaks: [...daySchedule.breaks, newBreak],
     });
@@ -70,14 +83,62 @@ export default function WeeklyScheduleEditor({ value, onChange }: WeeklySchedule
     });
   };
 
+  const validateBreaks = (breaks: Array<{ start: string; end: string }>, currentIndex?: number): string | null => {
+    for (let i = 0; i < breaks.length; i++) {
+      // Skip validation for the current break being edited
+      if (currentIndex !== undefined && i === currentIndex) continue;
+
+      const break1 = breaks[i];
+      const [start1Hours, start1Min] = break1.start.split(':').map(Number);
+      const [end1Hours, end1Min] = break1.end.split(':').map(Number);
+
+      const start1 = start1Hours * 60 + start1Min;
+      const end1 = end1Hours * 60 + end1Min;
+
+      // Check if start is after end
+      if (start1 >= end1) {
+        return `La pausa ${i + 1} tiene una hora de inicio posterior o igual a la hora de fin`;
+      }
+
+      // Check for overlaps with other breaks
+      for (let j = i + 1; j < breaks.length; j++) {
+        if (currentIndex !== undefined && j === currentIndex) continue;
+
+        const break2 = breaks[j];
+        const [start2Hours, start2Min] = break2.start.split(':').map(Number);
+        const [end2Hours, end2Min] = break2.end.split(':').map(Number);
+
+        const start2 = start2Hours * 60 + start2Min;
+        const end2 = end2Hours * 60 + end2Min;
+
+        // Check if breaks overlap
+        // Overlap exists if: start1 < end2 AND end1 > start2
+        if (start1 < end2 && end1 > start2) {
+          return `Las pausas ${i + 1} y ${j + 1} se solapan. Ajusta los horarios para que no se entrecrucen.`;
+        }
+      }
+    }
+    return null;
+  };
+
   const updateBreak = (dayOfWeek: number, breakIndex: number, field: 'start' | 'end', value: string) => {
     const daySchedule = getDaySchedule(dayOfWeek);
     if (!daySchedule) return;
 
+    const updatedBreaks = daySchedule.breaks.map((br, i) =>
+      i === breakIndex ? { ...br, [field]: value } : br
+    );
+
+    // Validate before updating
+    const error = validateBreaks(updatedBreaks, breakIndex);
+    if (error) {
+      // Show error to user - we'll use a simple alert for now
+      alert(error);
+      return;
+    }
+
     updateDaySchedule(dayOfWeek, {
-      breaks: daySchedule.breaks.map((br, i) => 
-        i === breakIndex ? { ...br, [field]: value } : br
-      ),
+      breaks: updatedBreaks,
     });
   };
 
@@ -135,9 +196,9 @@ export default function WeeklyScheduleEditor({ value, onChange }: WeeklySchedule
               </div>
 
               {enabled && daySchedule && (
-                <div className="ml-7 space-y-2">
+                <div className="ml-7 space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm text-muted-foreground">
+                    <Label className="text-sm font-medium">
                       Pausas
                     </Label>
                     <Button
@@ -157,32 +218,41 @@ export default function WeeklyScheduleEditor({ value, onChange }: WeeklySchedule
                       {daySchedule.breaks.map((breakItem, index) => (
                         <div
                           key={index}
-                          className="flex items-center gap-2 p-2 bg-muted/50 rounded"
+                          className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border"
                           data-testid={`break-${day.value}-${index}`}
                         >
-                          <Input
-                            type="time"
-                            value={breakItem.start}
-                            onChange={(e) => updateBreak(day.value, index, 'start', e.target.value)}
-                            className="w-28"
-                            data-testid={`input-break-start-${day.value}-${index}`}
-                          />
-                          <span className="text-muted-foreground">-</span>
-                          <Input
-                            type="time"
-                            value={breakItem.end}
-                            onChange={(e) => updateBreak(day.value, index, 'end', e.target.value)}
-                            className="w-28"
-                            data-testid={`input-break-end-${day.value}-${index}`}
-                          />
+                          <div className="flex items-center gap-2 flex-1">
+                            <Label className="text-xs text-muted-foreground min-w-[40px]">
+                              Inicio
+                            </Label>
+                            <Input
+                              type="time"
+                              value={breakItem.start}
+                              onChange={(e) => updateBreak(day.value, index, 'start', e.target.value)}
+                              className="w-32"
+                              data-testid={`input-break-start-${day.value}-${index}`}
+                            />
+                            <span className="text-muted-foreground px-1">-</span>
+                            <Label className="text-xs text-muted-foreground min-w-[30px]">
+                              Fin
+                            </Label>
+                            <Input
+                              type="time"
+                              value={breakItem.end}
+                              onChange={(e) => updateBreak(day.value, index, 'end', e.target.value)}
+                              className="w-32"
+                              data-testid={`input-break-end-${day.value}-${index}`}
+                            />
+                          </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => removeBreak(day.value, index)}
+                            className="shrink-0"
                             data-testid={`button-remove-break-${day.value}-${index}`}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </div>
                       ))}

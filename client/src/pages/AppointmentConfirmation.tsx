@@ -1,14 +1,19 @@
 import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { SiGooglecalendar } from 'react-icons/si';
+import { FaMicrosoft } from 'react-icons/fa';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Calendar, Clock, User, Download, Home } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, User, Home, UserPlus, Mail, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
-import type { Appointment } from '@shared/schema';
+import { formatTime12Hour } from '@/lib/timeFormat';
+import type { Appointment, AuthResponse } from '@shared/schema';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 const TIMEZONE = 'America/Bogota';
 
@@ -19,10 +24,55 @@ interface AppointmentConfirmationProps {
 
 export default function AppointmentConfirmation({ appointmentId, onBackToHome }: AppointmentConfirmationProps) {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const { data: authData } = useQuery<AuthResponse>({
+    queryKey: ['/api/auth/me'],
+    retry: false,
+  });
 
   const { data: appointment, isLoading } = useQuery<Appointment>({
     queryKey: ['/api/appointments', appointmentId],
     enabled: !!appointmentId,
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: async () => {
+      if (!appointment?.client) return;
+
+      // Create a default password or handle this differently?
+      // The user request says "create the user with the name the email and the number that were confirmed"
+      // Since we can't ask for a password here easily without a dialog, 
+      // and the user implies a one-click action ("if selects the button show a message"),
+      // we might need to generate a random password or use a default one.
+      // For now, I'll use a placeholder and maybe the user can change it later via "Forgot Password" logic if implemented,
+      // or we assume this is a "quick register" that might need email verification flow in a real app.
+      // However, given the constraints, I will use the phone number as the initial password 
+      // (since it's unique enough for a demo/MVP) or a fixed string.
+      // Let's use the phone number as the password for simplicity and user experience in this specific request context.
+
+      const res = await apiRequest('POST', '/api/auth/register', {
+        email: appointment.client.email,
+        password: appointment.client.phoneE164, // Using phone as initial password
+        fullName: appointment.client.fullName,
+        phoneE164: appointment.client.phoneE164,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/auth/me'], data);
+      toast({
+        title: "¡Registro exitoso!",
+        description: "Te has registrado correctamente en el sistema.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error al registrarse",
+        description: error.message,
+      });
+    },
   });
 
   const handleDownloadICS = async () => {
@@ -30,7 +80,7 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
       const response = await fetch(`/api/calendar/ics/${appointmentId}`, {
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error('No se pudo descargar el archivo');
       }
@@ -75,7 +125,10 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
 
   const startDateTime = new Date(appointment.startDateTime);
   const formattedDate = formatInTimeZone(startDateTime, TIMEZONE, "EEEE, d 'de' MMMM", { locale: es });
-  const formattedTime = formatInTimeZone(startDateTime, TIMEZONE, 'HH:mm');
+  const formattedTime24 = formatInTimeZone(startDateTime, TIMEZONE, 'HH:mm');
+  const formattedTime = formatTime12Hour(formattedTime24);
+
+  const isAuthenticated = !!authData;
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,14 +146,7 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
         </div>
 
         <Card className="p-8 space-y-6 mb-8">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">ID de Cita</p>
-            <p className="font-mono text-lg font-semibold" data-testid="text-appointment-id">
-              {appointment.id}
-            </p>
-          </div>
-
-          <Separator />
+          {/* ID Hidden as requested */}
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground mb-3">Servicio</h3>
@@ -163,24 +209,84 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
                 <User className="w-5 h-5 text-muted-foreground" />
                 <span data-testid="text-client-name">{appointment.client?.fullName}</span>
               </div>
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-muted-foreground" />
+                <span data-testid="text-client-email">{appointment.client?.email}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-muted-foreground" />
+                <span data-testid="text-client-phone">{appointment.client?.phoneE164}</span>
+              </div>
             </div>
           </div>
         </Card>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button 
-            variant="outline" 
+        {!isAuthenticated && (
+          <div className="mb-8">
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => registerMutation.mutate()}
+              disabled={registerMutation.isPending}
+            >
+              <UserPlus className="w-5 h-5 mr-2" />
+              {registerMutation.isPending ? 'Registrando...' : 'Registrarme en el sistema'}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              Crea una cuenta para agendar más rápido la próxima vez
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                if (!appointment || !appointment.service) return;
+                const startTime = new Date(appointment.startDateTime);
+                const endTime = new Date(startTime.getTime() + (appointment.service.durationMin || 30) * 60000);
+
+                const text = encodeURIComponent(`Cita en Barbería Sparta: ${appointment.service.name}`);
+                const details = encodeURIComponent(`Cita con ${appointment.barber?.name}. ${appointment.service.description || ''}`);
+                const location = encodeURIComponent('Barbería Sparta');
+
+                const formatDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, '');
+                const dates = `${formatDate(startTime)}/${formatDate(endTime)}`;
+
+                window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`, '_blank');
+              }}
+              data-testid="button-google-calendar"
+            >
+              <SiGooglecalendar className="w-5 h-5 mr-2" />
+              Agregar a Google Calendar
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                if (!appointment || !appointment.service) return;
+                const startTime = new Date(appointment.startDateTime);
+                const endTime = new Date(startTime.getTime() + (appointment.service.durationMin || 30) * 60000);
+
+                const subject = encodeURIComponent(`Cita en Barbería Sparta: ${appointment.service.name}`);
+                const body = encodeURIComponent(`Cita con ${appointment.barber?.name}. ${appointment.service.description || ''}`);
+                const location = encodeURIComponent('Barbería Sparta');
+
+                window.open(`https://outlook.live.com/calendar/0/deeplink/compose?subject=${subject}&startdt=${startTime.toISOString()}&enddt=${endTime.toISOString()}&body=${body}&location=${location}`, '_blank');
+              }}
+              data-testid="button-outlook-calendar"
+            >
+              <FaMicrosoft className="w-5 h-5 mr-2" />
+              Agregar a Outlook Calendar
+            </Button>
+          </div>
+          <Button
             size="lg"
-            className="flex-1"
-            onClick={handleDownloadICS}
-            data-testid="button-download-ics"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Descargar ICS
-          </Button>
-          <Button 
-            size="lg"
-            className="flex-1"
+            className="w-full"
             onClick={onBackToHome}
             data-testid="button-back-home"
           >

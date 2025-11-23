@@ -3,7 +3,17 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const error = new Error(`${res.status}: ${text}`);
+
+    // Silenciar el stack trace para errores 401 (esperados cuando no hay sesión)
+    if (res.status === 401) {
+      // Crear un error sin stack trace visible para no contaminar la consola
+      Object.defineProperty(error, 'stack', {
+        get: () => '', // Stack vacío para errores 401
+      });
+    }
+
+    throw error;
   }
 }
 
@@ -28,39 +38,39 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    let url = '';
-    const params = new URLSearchParams();
-    
-    for (let i = 0; i < queryKey.length; i++) {
-      const segment = queryKey[i];
-      
-      if (typeof segment === 'string') {
-        url += (i === 0 ? '' : '/') + segment;
-      } else if (typeof segment === 'object' && segment !== null) {
-        Object.entries(segment).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, String(value));
-          }
-        });
+    async ({ queryKey }) => {
+      let url = '';
+      const params = new URLSearchParams();
+
+      for (let i = 0; i < queryKey.length; i++) {
+        const segment = queryKey[i];
+
+        if (typeof segment === 'string') {
+          url += (i === 0 ? '' : '/') + segment;
+        } else if (typeof segment === 'object' && segment !== null) {
+          Object.entries(segment).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+              params.append(key, String(value));
+            }
+          });
+        }
       }
-    }
-    
-    if (params.toString()) {
-      url += '?' + params.toString();
-    }
-    
-    const res = await fetch(url, {
-      credentials: "include",
-    });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+      const res = await fetch(url, {
+        credentials: "include",
+      });
+
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      await throwIfResNotOk(res);
+      return await res.json();
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

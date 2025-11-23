@@ -45,6 +45,42 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { createServiceSchema, type Service, type CreateServiceInput } from '@shared/schema';
+import { cn } from '@/lib/utils';
+
+// Import specific icons from React Icons (same as ServiceSelection)
+import {
+  GiScissors,
+  GiBeard,
+  GiRazor,
+  GiComb,
+  GiTowel,
+  GiMustache,
+  GiStarsStack,
+  GiMedal,
+  GiTrophy,
+  GiDiamondHard
+} from 'react-icons/gi';
+import { FaEye, FaSpa, FaStar, FaCrown, FaFire } from 'react-icons/fa';
+import { IconType } from 'react-icons';
+
+// Map string names to React Icon components
+const IconMap: Record<string, IconType> = {
+  'Scissors': GiScissors,
+  'Beard': GiBeard,
+  'Eye': FaEye,
+  'Spa': FaSpa,
+  'Razor': GiRazor,
+  'Star': FaStar,
+  'Towel': GiTowel,
+  'Mustache': GiMustache,
+  'Diamond': GiDiamondHard,
+  'Fire': FaFire,
+  'Medal': GiMedal,
+  'Trophy': GiTrophy,
+  'Stars': GiStarsStack,
+  'Comb': GiComb,
+  'Crown': FaCrown,
+};
 
 export default function Services() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -59,7 +95,7 @@ export default function Services() {
     resolver: zodResolver(createServiceSchema),
     defaultValues: {
       name: '',
-      category: '',
+      category: undefined as any,
       icon: '',
       priceCOP: 0,
       description: '',
@@ -156,7 +192,7 @@ export default function Services() {
       setEditingService(null);
       form.reset({
         name: '',
-        category: '',
+        category: undefined as any,
         icon: '',
         priceCOP: 0,
         description: '',
@@ -193,7 +229,7 @@ export default function Services() {
                 Nuevo Servicio
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingService ? 'Editar Servicio' : 'Nuevo Servicio'}
@@ -202,93 +238,121 @@ export default function Services() {
                   {editingService ? 'Actualiza la información del servicio' : 'Crea un nuevo servicio para la barbería'}
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
+              <Form {...form} key={editingService?.id || 'new'}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-service-name" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-service-category">
-                              <SelectValue placeholder="Selecciona una categoría" />
-                            </SelectTrigger>
+                            <Input {...field} data-testid="input-service-name" />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Servicios Individuales">Servicios Individuales</SelectItem>
-                            <SelectItem value="Combos de dos servicios">Combos de dos servicios</SelectItem>
-                            <SelectItem value="Combos de tres servicios">Combos de tres servicios</SelectItem>
-                            <SelectItem value="Combo completo">Combo completo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Categoría</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-service-category">
+                                <SelectValue placeholder="Selecciona una categoría" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Combo completo">Combo completo</SelectItem>
+                              <SelectItem value="Combos de tres servicios">Combos de tres servicios</SelectItem>
+                              <SelectItem value="Combos de dos servicios">Combos de dos servicios</SelectItem>
+                              <SelectItem value="Servicios Individuales">Servicios Individuales</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="icon"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Icono (emoji)</FormLabel>
+                        <FormLabel>Icono</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="✂️" data-testid="input-service-icon" />
+                          <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 p-2 border rounded-md bg-zinc-900/50">
+                            {Object.entries(IconMap).map(([name, Icon]) => (
+                              <div
+                                key={name}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-2 rounded-md cursor-pointer transition-all hover:bg-zinc-800 aspect-square",
+                                  field.value === name ? "bg-amber-500/20 border-2 border-amber-500" : "border border-transparent"
+                                )}
+                                onClick={() => field.onChange(name)}
+                                title={name}
+                              >
+                                <Icon className={cn("w-6 h-6 mb-1", field.value === name ? "text-amber-500" : "text-zinc-400")} />
+                              </div>
+                            ))}
+                          </div>
                         </FormControl>
                         <FormMessage />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Seleccionado: {field.value || 'Ninguno'}
+                        </p>
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="priceCOP"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Precio</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                            data-testid="input-service-price"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="durationMin"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duración (minutos)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                            data-testid="input-service-duration"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="priceCOP"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Precio</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              data-testid="input-service-price"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="durationMin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duración (minutos)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              data-testid="input-service-duration"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
                     name="description"
@@ -320,7 +384,7 @@ export default function Services() {
                       </FormItem>
                     )}
                   />
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-4">
                     <Button
                       type="button"
                       variant="outline"
@@ -353,73 +417,80 @@ export default function Services() {
           ) : (
             <div className="w-full overflow-x-auto">
               <Table className="min-w-[850px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[140px]">Nombre</TableHead>
-                  <TableHead className="min-w-[150px]">Categoría</TableHead>
-                  <TableHead className="min-w-[60px]">Icono</TableHead>
-                  <TableHead className="min-w-[100px] whitespace-nowrap">Precio</TableHead>
-                  <TableHead className="min-w-[110px] whitespace-nowrap">Duración (min)</TableHead>
-                  <TableHead className="min-w-[90px]">Estado</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {services?.length === 0 ? (
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      No hay servicios
-                    </TableCell>
+                    <TableHead className="min-w-[140px]">Nombre</TableHead>
+                    <TableHead className="min-w-[150px]">Categoría</TableHead>
+                    <TableHead className="min-w-[60px]">Icono</TableHead>
+                    <TableHead className="min-w-[100px] whitespace-nowrap">Precio</TableHead>
+                    <TableHead className="min-w-[110px] whitespace-nowrap">Duración (min)</TableHead>
+                    <TableHead className="min-w-[90px]">Estado</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  services?.map((service) => (
-                    <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
-                      <TableCell className="font-medium" data-testid="text-service-name">
-                        {service.name}
-                      </TableCell>
-                      <TableCell data-testid="text-service-category">
-                        <Badge variant="outline">{service.category}</Badge>
-                      </TableCell>
-                      <TableCell className="text-2xl" data-testid="text-service-icon">
-                        {service.icon}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap" data-testid="text-service-price">
-                        ${service.priceCOP.toLocaleString('es-CO')}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap" data-testid="text-service-duration">
-                        {service.durationMin}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={service.active ? 'default' : 'secondary'} data-testid="badge-service-status">
-                          {service.active ? 'Activo' : 'Inactivo'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(service)}
-                            data-testid="button-edit-service"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(service.id)}
-                            disabled={deleteMutation.isPending}
-                            data-testid="button-delete-service"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {services?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        No hay servicios
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    services?.map((service) => {
+                      const IconComponent = IconMap[service.icon];
+                      return (
+                        <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
+                          <TableCell className="font-medium" data-testid="text-service-name">
+                            {service.name}
+                          </TableCell>
+                          <TableCell data-testid="text-service-category">
+                            <Badge variant="outline">{service.category}</Badge>
+                          </TableCell>
+                          <TableCell className="text-2xl" data-testid="text-service-icon">
+                            {IconComponent ? (
+                              <IconComponent className="w-6 h-6 text-amber-500" />
+                            ) : (
+                              <span>{service.icon}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap" data-testid="text-service-price">
+                            ${service.priceCOP.toLocaleString('es-CO')}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap" data-testid="text-service-duration">
+                            {service.durationMin}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={service.active ? 'default' : 'secondary'} data-testid="badge-service-status">
+                              {service.active ? 'Activo' : 'Inactivo'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(service)}
+                                data-testid="button-edit-service"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteMutation.mutate(service.id)}
+                                disabled={deleteMutation.isPending}
+                                data-testid="button-delete-service"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </div>
           )}
         </Card>

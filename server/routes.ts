@@ -9,7 +9,7 @@ import logger from './lib/logger';
 import { authMiddleware, requireRole, requireBarberAccess, type AuthRequest } from './middleware/auth';
 import { createAuditLog } from './middleware/audit';
 import { calculateAvailableSlots } from './services/availability';
-import { 
+import {
   validateStateTransition,
   canCancelAppointment,
   canRescheduleAppointment,
@@ -142,10 +142,12 @@ router.post('/api/auth/login', authLimiter, async (req: Request, res: Response) 
 router.post('/api/auth/register', authLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, phoneE164 } = registerSchema.parse(req.body);
+    console.log('Registering email:', email);
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
+    console.log('Existing user check result:', existingUser);
 
     if (existingUser) {
       return res.status(400).json({ error: 'El email ya está registrado' });
@@ -153,18 +155,25 @@ router.post('/api/auth/register', authLimiter, async (req: Request, res: Respons
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Check if client already exists (e.g. from booking)
+    const existingClient = await prisma.client.findUnique({
+      where: { email },
+    });
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash,
         role: 'CLIENT',
-        client: {
-          create: {
-            email,
-            fullName,
-            phoneE164,
+        client: existingClient
+          ? { connect: { email } }
+          : {
+            create: {
+              email,
+              fullName,
+              phoneE164,
+            },
           },
-        },
       },
     });
 
@@ -313,7 +322,13 @@ router.get('/api/barbers', apiLimiter, async (req: Request, res: Response) => {
 
 router.post('/api/availability', apiLimiter, async (req: Request, res: Response) => {
   try {
-    const { serviceId, barberId, date, excludeAppointmentId } = availabilityRequestSchema.parse(req.body);
+    // Directly extract request fields; allow 'any' as barberId
+    const { serviceId, barberId, date, excludeAppointmentId } = req.body as {
+      serviceId: string;
+      barberId: string;
+      date: string;
+      excludeAppointmentId?: string;
+    };
 
     const slots = await calculateAvailableSlots(serviceId, barberId, date, excludeAppointmentId);
 
@@ -388,17 +403,17 @@ router.post('/api/appointments', apiLimiter, async (req: Request, res: Response)
     const startDateColombia = toZonedTime(startDate, 'America/Bogota');
     const dateStr = format(startDateColombia, 'yyyy-MM-dd');
     const requestedTime = format(startDateColombia, 'HH:mm');
-    
+
     const availableSlots = await calculateAvailableSlots(serviceId, barberId, dateStr);
-    
+
     // Since calculateAvailableSlots now only returns available slots,
     // we just need to check if the requested time exists in the array
     const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime);
-    
+
     if (!isAvailable) {
-      logger.warn('Slot not available', { 
-        barberId, 
-        startDate: startDate.toISOString(), 
+      logger.warn('Slot not available', {
+        barberId,
+        startDate: startDate.toISOString(),
         requestedTime,
         availableSlots: availableSlots.map(s => s.startTime)
       });
@@ -563,6 +578,76 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
 });
 
 router.put(
+  '/api/appointments/:id',
+  authMiddleware,
+  requireRole('CLIENT'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { newStartDateTime } = rescheduleAppointmentSchema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        include: { client: true },
+      });
+
+      if (!user || !user.client) {
+        return res.status(403).json({ error: 'No autorizado' });
+      }
+
+      const appointment = await prisma.appointment.findUnique({
+        where: { id },
+        include: { service: true },
+      });
+
+      if (!appointment) {
+        return res.status(404).json({ error: 'Cita no encontrada' });
+      }
+
+      if (appointment.clientId !== user.client.id) {
+        return res.status(403).json({ error: 'No autorizado' });
+      }
+
+      // Validate rescheduling
+      const validation = canRescheduleAppointment(appointment.startDateTime);
+      if (!validation.allowed) {
+        return res.status(400).json({ error: validation.reason });
+      }
+
+      const newStartDate = parseISO(newStartDateTime);
+      const newEndDate = addMinutes(newStartDate, appointment.service.durationMin);
+
+      // Check availability
+      const dateStr = format(newStartDate, 'yyyy-MM-dd');
+      const availableSlots = await calculateAvailableSlots(appointment.serviceId, appointment.barberId, dateStr, id);
+      const requestedTime = format(newStartDate, 'HH:mm');
+
+      const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
+
+      if (!isAvailable) {
+        return res.status(400).json({ error: 'El horario seleccionado no está disponible' });
+      }
+
+      await prisma.appointment.update({
+        where: { id },
+        data: {
+          startDateTime: newStartDate,
+          endDateTime: newEndDate,
+          status: 'reagendado',
+        },
+      });
+
+      await createAuditLog(req.user!.id, 'CLIENT', 'update', 'appointment', id, { status: 'reagendado', newStartDateTime }, req);
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Reschedule appointment error:', error);
+      res.status(500).json({ error: 'Error al reagendar la cita' });
+    }
+  }
+);
+
+router.put(
   '/api/admin/appointments/:id',
   authMiddleware,
   requireRole('ADMIN', 'BARBER'),
@@ -614,16 +699,16 @@ router.put(
         // Check availability for the new slot if changing date/time or barber
         const dateStr = format(newStartDate, 'yyyy-MM-dd');
         const barberId = data.barberId || appointment.barberId;
-        const availableSlots = await calculateAvailableSlots(appointment.serviceId, barberId, dateStr);
+        const availableSlots = await calculateAvailableSlots(appointment.serviceId, barberId, dateStr, id);
         const requestedTime = format(newStartDate, 'HH:mm');
-        
+
         // Filter out the current appointment when checking availability
         const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
-        
+
         if (!isAvailable) {
-          logger.warn('Slot not available for reschedule', { 
-            barberId, 
-            newStartDate: newStartDate.toISOString(), 
+          logger.warn('Slot not available for reschedule', {
+            barberId,
+            newStartDate: newStartDate.toISOString(),
             requestedTime,
           });
           return res.status(400).json({ error: 'El horario seleccionado no está disponible' });
@@ -680,7 +765,7 @@ router.get(
     try {
       // Parse and validate query params
       const queryParams = barberStatsQuerySchema.parse(req.query);
-      
+
       // For ADMIN users acting as barbers, use barberId from req.user
       // For regular BARBER users, query by userId
       let barber;
@@ -700,11 +785,11 @@ router.get(
 
       // Get current time in Bogota timezone
       const nowInBogota = toZonedTime(new Date(), TIMEZONE);
-      
+
       // Default to last 7 days if not provided
       let startDate: Date;
       let endDate: Date;
-      
+
       if (queryParams.startDate && queryParams.endDate) {
         // Parse provided dates and convert to Bogota timezone
         startDate = fromZonedTime(startOfDay(parseISO(queryParams.startDate)), TIMEZONE);
@@ -714,10 +799,16 @@ router.get(
         startDate = fromZonedTime(startOfDay(subDays(nowInBogota, 6)), TIMEZONE);
         endDate = fromZonedTime(endOfDay(nowInBogota), TIMEZONE);
       }
-      
-      // Calculate startOfToday for "Citas Hoy"
-      const startOfToday = fromZonedTime(startOfDay(nowInBogota), TIMEZONE);
-      
+
+      // Calculate startOfToday and endOfToday for "Citas Hoy" in Bogota timezone
+      // Get today's date in Bogota timezone as a string (YYYY-MM-DD)
+      const todayInBogota = format(toZonedTime(new Date(), TIMEZONE), 'yyyy-MM-dd');
+
+      // Create start and end of day in Bogota timezone, then convert to UTC
+      // Using ISO string with timezone offset for Bogota (UTC-5)
+      const startOfToday = new Date(`${todayInBogota}T00:00:00-05:00`);
+      const endOfToday = new Date(`${todayInBogota}T23:59:59.999-05:00`);
+
       // Fetch appointments in the date range with services
       const appointmentsInRange = await prisma.appointment.findMany({
         where: {
@@ -732,30 +823,30 @@ router.get(
           startDateTime: 'asc',
         },
       });
-      
+
       // Calculate stats for the range
       const periodAppointments = appointmentsInRange.length;
-      
+
       // Calculate revenue only from completed appointments
       const completedAppointmentsInRange = appointmentsInRange.filter(appt => appt.status === 'completado');
       const periodRevenueCOP = completedAppointmentsInRange.reduce(
         (sum, appt) => sum + appt.service.priceCOP,
         0
       );
-      
+
       // Unique clients in period
       const uniqueClientIds = new Set(appointmentsInRange.map(appt => appt.clientId));
       const uniqueClientsInPeriod = uniqueClientIds.size;
-      
-      // Appointments today (independent of date range)
+
+      // Appointments today (independent of date range) - count all appointments today except cancelled
       const appointmentsToday = await prisma.appointment.count({
         where: {
           barberId: barber.id,
-          startDateTime: { gte: startOfToday },
-          status: { in: ['agendado', 'reagendado'] },
+          startDateTime: { gte: startOfToday, lte: endOfToday },
+          status: { not: 'cancelado' },
         },
       });
-      
+
       // Total appointments (all time)
       const totalAppointments = await prisma.appointment.count({
         where: {
@@ -763,7 +854,7 @@ router.get(
           status: { in: ['agendado', 'reagendado', 'completado'] },
         },
       });
-      
+
       // Generate timeSeries by grouping appointments by date
       const timeSeriesGrouped = appointmentsInRange.reduce((acc, appt) => {
         const date = format(toZonedTime(appt.startDateTime, TIMEZONE), 'yyyy-MM-dd');
@@ -777,11 +868,11 @@ router.get(
         }
         return acc;
       }, {} as Record<string, BarberDashboardTimeSeriesPoint>);
-      
-      const timeSeries = Object.values(timeSeriesGrouped).sort((a, b) => 
+
+      const timeSeries = Object.values(timeSeriesGrouped).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
-      
+
       // Generate serviceBreakdown by grouping appointments by service
       const serviceBreakdownGrouped = appointmentsInRange.reduce((acc, appt) => {
         const serviceId = appt.serviceId;
@@ -800,11 +891,11 @@ router.get(
         }
         return acc;
       }, {} as Record<string, ServiceBreakdown>);
-      
+
       const serviceBreakdown = Object.values(serviceBreakdownGrouped).sort(
         (a, b) => b.appointments - a.appointments
       );
-      
+
       const stats: BarberDashboardStats = {
         barberName: barber.name,
         periodAppointments,
@@ -971,15 +1062,15 @@ router.patch(
 
         // Check availability for the new slot
         const dateStr = format(newStartDate, 'yyyy-MM-dd');
-        const availableSlots = await calculateAvailableSlots(appointment.serviceId, appointment.barberId, dateStr);
+        const availableSlots = await calculateAvailableSlots(appointment.serviceId, appointment.barberId, dateStr, id);
         const requestedTime = format(newStartDate, 'HH:mm');
-        
+
         const isAvailable = availableSlots.some(slot => slot.startTime === requestedTime && slot.available);
-        
+
         if (!isAvailable) {
-          logger.warn('Slot not available for reschedule', { 
-            barberId: appointment.barberId, 
-            newStartDate: newStartDate.toISOString(), 
+          logger.warn('Slot not available for reschedule', {
+            barberId: appointment.barberId,
+            newStartDate: newStartDate.toISOString(),
             requestedTime,
           });
           return res.status(400).json({ error: 'El horario seleccionado no está disponible' });
@@ -1353,14 +1444,14 @@ router.get(
     try {
       // Parse and validate query params
       const queryParams = adminStatsQuerySchema.parse(req.query);
-      
+
       // Get current time in Bogota timezone
       const nowInBogota = toZonedTime(new Date(), TIMEZONE);
-      
+
       // Default to last 7 days if not provided
       let startDate: Date;
       let endDate: Date;
-      
+
       if (queryParams.startDate && queryParams.endDate) {
         // Parse provided dates and convert to Bogota timezone
         startDate = fromZonedTime(startOfDay(parseISO(queryParams.startDate)), TIMEZONE);
@@ -1370,47 +1461,61 @@ router.get(
         startDate = fromZonedTime(startOfDay(subDays(nowInBogota, 6)), TIMEZONE);
         endDate = fromZonedTime(endOfDay(nowInBogota), TIMEZONE);
       }
-      
-      // Calculate startOfToday for "Citas Hoy"
-      const startOfToday = fromZonedTime(startOfDay(nowInBogota), TIMEZONE);
-      
+
+      // Calculate startOfToday and endOfToday for "Citas Hoy" in Bogota timezone
+      // Get today's date in Bogota timezone as a string (YYYY-MM-DD)
+      const todayInBogota = format(toZonedTime(new Date(), TIMEZONE), 'yyyy-MM-dd');
+
+      // Create start and end of day in Bogota timezone, then convert to UTC
+      // Using ISO string with timezone offset for Bogota (UTC-5)
+      const startOfToday = new Date(`${todayInBogota}T00:00:00-05:00`);
+      const endOfToday = new Date(`${todayInBogota}T23:59:59.999-05:00`);
+
       // Fetch appointments in the date range with services
       const appointmentsInRange = await prisma.appointment.findMany({
         where: {
           startDateTime: { gte: startDate, lte: endDate },
-          status: { in: ['agendado', 'reagendado', 'completado'] },
+          status: { in: ['agendado', 'reagendado', 'completado', 'cancelado'] },
         },
         include: {
           service: true,
+          barber: true,
         },
         orderBy: {
           startDateTime: 'asc',
         },
       });
-      
-      // Calculate stats for the range
-      const totalAppointments = appointmentsInRange.length;
-      
+
+      // Filter for active appointments (excluding cancelled) for general stats
+      const activeAppointments = appointmentsInRange.filter(appt => appt.status !== 'cancelado');
+
+      // Calculate stats for the range (using active appointments only)
+      const totalAppointments = activeAppointments.length;
+
       // Calculate revenue only from completed appointments
       const completedAppointments = appointmentsInRange.filter(appt => appt.status === 'completado');
       const revenueThisMonth = completedAppointments.reduce(
         (sum, appt) => sum + appt.service.priceCOP,
         0
       );
-      
-      // Appointments today (independent of date range)
+
+      // Appointments today (independent of date range) - count all appointments today except cancelled
       const appointmentsToday = await prisma.appointment.count({
         where: {
-          startDateTime: { gte: startOfToday },
-          status: { in: ['agendado', 'reagendado'] },
+          startDateTime: { gte: startOfToday, lte: endOfToday },
+          status: { not: 'cancelado' },
         },
       });
-      
+
       // Total clients (global, not filtered)
       const totalClients = await prisma.client.count();
-      
-      // Generate timeSeries by grouping appointments by date
-      const grouped = appointmentsInRange.reduce((acc, appt) => {
+
+      // Unique clients in period (from active appointments in the selected range)
+      const uniqueClientIds = new Set(activeAppointments.map(appt => appt.clientId));
+      const clientsInPeriod = uniqueClientIds.size;
+
+      // Generate timeSeries by grouping active appointments by date
+      const grouped = activeAppointments.reduce((acc, appt) => {
         const date = format(toZonedTime(appt.startDateTime, TIMEZONE), 'yyyy-MM-dd');
         if (!acc[date]) {
           acc[date] = { date, appointments: 0, revenueCOP: 0 };
@@ -1422,19 +1527,68 @@ router.get(
         }
         return acc;
       }, {} as Record<string, DashboardTimeSeriesPoint>);
-      
-      const timeSeries = Object.values(grouped).sort((a, b) => 
+
+      // Calculate status distribution
+      const statusDistribution = appointmentsInRange.reduce((acc, appt) => {
+        const status = appt.status;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Ensure all statuses are present even if count is 0
+      const allStatuses = ['agendado', 'reagendado', 'completado', 'cancelado'];
+      allStatuses.forEach(status => {
+        if (!statusDistribution[status]) {
+          statusDistribution[status] = 0;
+        }
+      });
+
+      // Debug logging for status distribution
+      console.log('DEBUG STATS:', {
+        range: { startDate, endDate },
+        totalFound: appointmentsInRange.length,
+        activeFound: activeAppointments.length,
+        distribution: statusDistribution
+      });
+
+      const timeSeries = Object.values(grouped).sort((a, b) =>
         a.date.localeCompare(b.date)
       );
-      
+
+      // Calculate barber stats (completed appointments per barber)
+      const barberStatsMap = completedAppointments.reduce((acc, appt) => {
+        const barberName = appt.barber?.name || 'Sin asignar';
+        acc[barberName] = (acc[barberName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const barberStats = Object.entries(barberStatsMap)
+        .map(([barberName, completedAppointments]) => ({ barberName, completedAppointments }))
+        .sort((a, b) => b.completedAppointments - a.completedAppointments);
+
+      // Calculate service stats (count of each service in completed appointments)
+      const serviceStatsMap = completedAppointments.reduce((acc, appt) => {
+        const serviceName = appt.service?.name || 'Desconocido';
+        acc[serviceName] = (acc[serviceName] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const serviceStats = Object.entries(serviceStatsMap)
+        .map(([serviceName, count]) => ({ serviceName, count }))
+        .sort((a, b) => b.count - a.count);
+
       const stats: DashboardStats = {
         totalAppointments,
         appointmentsToday,
         appointmentsThisWeek: 0, // Deprecated, kept for compatibility
         appointmentsThisMonth: 0, // Deprecated, kept for compatibility
         totalClients,
+        clientsInPeriod,
         totalRevenueCOP: 0, // Deprecated, kept for compatibility
         revenueThisMonth,
+        statusDistribution,
+        barberStats,
+        serviceStats,
         timeSeries,
       };
 

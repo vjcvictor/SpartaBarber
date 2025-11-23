@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { format, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { TimeSlot } from '@shared/schema';
 
 interface DateTimeSelectionProps {
@@ -20,7 +21,7 @@ interface DateTimeSelectionProps {
   selectedDate: Date | null;
   selectedTime: string | null;
   onDateSelect: (date: Date) => void;
-  onTimeSelect: (time: string) => void;
+  onTimeSelect: (time: string, barberId?: string) => void;
 }
 
 export default function DateTimeSelection({
@@ -39,6 +40,28 @@ export default function DateTimeSelection({
   const today = startOfDay(new Date());
   const tomorrow = startOfDay(addDays(today, 1));
 
+  const slotsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-select today on mount if no date selected
+  useEffect(() => {
+    if (!selectedDate) {
+      onDateSelect(today);
+    }
+  }, []);
+
+  // Scroll to slots when date changes (user interaction)
+  useEffect(() => {
+    if (selectedDate && slotsContainerRef.current) {
+      // Small timeout to ensure DOM is ready and it feels like a reaction to the click
+      setTimeout(() => {
+        slotsContainerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 300);
+    }
+  }, [selectedDate]);
+
   const availabilityMutation = useMutation({
     mutationFn: async (date: Date) => {
       const dateStr = format(date, 'yyyy-MM-dd');
@@ -51,6 +74,10 @@ export default function DateTimeSelection({
     },
     onSuccess: (data: TimeSlot[]) => {
       setAvailableSlots(data);
+      // Auto-select first slot if available and no time selected
+      if (data.length > 0 && !selectedTime) {
+        onTimeSelect(data[0].startTime, data[0].barberId);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -95,27 +122,35 @@ export default function DateTimeSelection({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6">
-          <TabsTrigger 
-            value="today" 
+        <TabsList className="grid w-full grid-cols-3 gap-3 mb-4 sm:mb-6 bg-transparent h-auto p-0">
+          <TabsTrigger
+            value="today"
             onClick={() => handleQuickDate(today, 'today')}
             data-testid="tab-today"
+            className="flex flex-col items-center gap-1 h-auto py-3 px-4 rounded-2xl border-2 data-[state=active]:border-amber-500 data-[state=inactive]:border-zinc-700 data-[state=active]:bg-zinc-800 data-[state=inactive]:bg-zinc-900 hover:bg-zinc-800 transition-colors"
           >
-            Hoy
+            <span className="font-semibold text-base text-white">Hoy</span>
+            <span className="text-xs text-amber-400">{format(today, 'd MMM', { locale: es })}</span>
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="tomorrow"
             onClick={() => handleQuickDate(tomorrow, 'tomorrow')}
             data-testid="tab-tomorrow"
+            className="flex flex-col items-center gap-1 h-auto py-3 px-4 rounded-2xl border-2 data-[state=active]:border-amber-500 data-[state=inactive]:border-zinc-700 data-[state=active]:bg-zinc-800 data-[state=inactive]:bg-zinc-900 hover:bg-zinc-800 transition-colors"
           >
-            Mañana
+            <span className="font-semibold text-base text-white">Mañana</span>
+            <span className="text-xs text-gray-300">{format(tomorrow, 'd MMM', { locale: es })}</span>
           </TabsTrigger>
-          <TabsTrigger value="other" data-testid="tab-other">
+          <TabsTrigger
+            value="other"
+            data-testid="tab-other"
+            className="flex flex-col items-center gap-1 h-auto py-3 px-4 rounded-2xl border-2 data-[state=active]:border-amber-500 data-[state=inactive]:border-zinc-700 data-[state=active]:bg-zinc-800 data-[state=inactive]:bg-zinc-900 hover:bg-zinc-800 transition-colors"
+          >
             <Popover>
               <PopoverTrigger asChild>
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4" />
-                  Otra Fecha
+                <div className="flex flex-col items-center gap-1">
+                  <CalendarIcon className="w-5 h-5 text-gray-300" />
+                  <span className="text-xs text-white">Otra Fecha</span>
                 </div>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="center">
@@ -142,7 +177,7 @@ export default function DateTimeSelection({
         </TabsContent>
       </Tabs>
 
-      <div>
+      <div ref={slotsContainerRef} className="scroll-mt-8">
         <h3 className="text-lg font-semibold mb-4">
           {selectedDate ? 'Horarios Disponibles' : 'Selecciona una fecha primero'}
         </h3>
@@ -165,7 +200,7 @@ export default function DateTimeSelection({
                 onClick={() => handleTimeSelect(slot)}
                 data-testid={`button-time-${slot.startTime.replace(':', '-')}`}
               >
-                {slot.startTime}
+                {formatTime12Hour(slot.startTime)}
               </Button>
             ))}
           </div>

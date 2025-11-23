@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, LogIn, UserPlus, Home } from 'lucide-react';
+import { ChevronLeft, LogIn, UserPlus, Home, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBookingStore } from '@/lib/store';
@@ -14,7 +14,7 @@ import ClientForm, { type ClientFormOutput } from '@/components/ClientForm';
 import BookingReview from '@/components/BookingReview';
 import AppointmentConfirmation from './AppointmentConfirmation';
 import AuthDialog from '@/components/AuthDialog';
-import type { Service, AuthResponse } from '@shared/schema';
+import type { Service, Barber, AuthResponse } from '@shared/schema';
 
 export default function BookingFlow() {
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export default function BookingFlow() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogMode, setAuthDialogMode] = useState<'login' | 'register'>('login');
   const [, setLocation] = useLocation();
-  
+
   // Refs for auto-scrolling
   const barberSectionRef = useRef<HTMLDivElement>(null);
   const nextButtonRef = useRef<HTMLDivElement>(null);
@@ -49,6 +49,11 @@ export default function BookingFlow() {
     reset,
   } = useBookingStore();
 
+  const { data: barbers = [], isLoading: isLoadingBarbers } = useQuery<Barber[]>({
+    queryKey: ['/api/barbers', { serviceId: selectedService?.id }],
+    enabled: !!selectedService,
+  });
+
   const { data: authData } = useQuery<AuthResponse>({
     queryKey: ['/api/auth/me'],
     retry: false,
@@ -71,7 +76,7 @@ export default function BookingFlow() {
       const statsData = clientStats as any;
       const phoneWithoutCountryCode = statsData.phoneE164?.replace('+57', '').trim() || '';
       const emailFromAuth = authData?.user.email || '';
-      
+
       hydrateClientDraft({
         fullName: statsData.clientName || '',
         countryCode: '+57',
@@ -107,9 +112,9 @@ export default function BookingFlow() {
   useEffect(() => {
     if (selectedService && barberSectionRef.current && currentStep === 1) {
       setTimeout(() => {
-        barberSectionRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
+        barberSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
         });
       }, 300);
     }
@@ -119,9 +124,9 @@ export default function BookingFlow() {
   useEffect(() => {
     if (selectedBarber && nextButtonRef.current && currentStep === 1) {
       setTimeout(() => {
-        nextButtonRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        nextButtonRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         });
       }, 300);
     }
@@ -138,10 +143,63 @@ export default function BookingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#1d1816] text-white">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <BookingProgress currentStep={currentStep} />
-        
+        {/* Header with logo and step indicators */}
+        <div className="bg-zinc-800 rounded-lg p-4 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Logo and branding */}
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="Sparta Logo"
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h1 className="text-white font-bold text-lg">Barbería Sparta</h1>
+                <p className="text-gray-400 text-sm">Agenda tu cita</p>
+              </div>
+            </div>
+
+            {/* Step indicators - centered on mobile with dividers */}
+            <div className="flex items-center justify-center md:justify-start gap-2 sm:gap-3">
+              {[
+                { num: 1, label: 'Servicio' },
+                { num: 2, label: 'Fecha y hora' },
+                { num: 3, label: 'Datos' },
+                { num: 4, label: 'Confirmación' }
+              ].map((step, index) => (
+                <React.Fragment key={step.num}>
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep === step.num
+                        ? 'bg-amber-500 text-black'
+                        : currentStep > step.num
+                          ? 'bg-green-600 text-white'
+                          : 'bg-zinc-700 text-gray-400'
+                        }`}
+                    >
+                      {currentStep > step.num ? (
+                        <Check className="w-5 h-5" />
+                      ) : (
+                        step.num
+                      )}
+                    </div>
+                    <span className={`text-[10px] sm:text-xs whitespace-nowrap ${currentStep === step.num ? 'text-white font-medium' : 'text-gray-400'
+                      }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {/* Horizontal divider between steps */}
+                  {index < 3 && (
+                    <div className="h-px w-4 sm:w-8 bg-zinc-600 mb-6" />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="mt-8">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -194,17 +252,21 @@ export default function BookingFlow() {
                   <BarberSelection
                     serviceId={selectedService.id}
                     selectedBarber={selectedBarber}
-                    onSelect={setBarber}
+                    onSelect={(barber) => {
+                      setBarber(barber);
+                    }}
+                    barbers={barbers}
+                    isLoading={isLoadingBarbers}
                   />
                 </div>
               )}
               {canProceedFromStep1 && (
-                <div 
+                <div
                   ref={nextButtonRef}
                   className="sticky bottom-4 z-10 pt-4"
                 >
                   <div className="flex justify-end">
-                    <Button 
+                    <Button
                       size="lg"
                       className="shadow-lg"
                       onClick={goNext}
@@ -226,12 +288,20 @@ export default function BookingFlow() {
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}
                 onDateSelect={setDate}
-                onTimeSelect={setTime}
+                onTimeSelect={(time, barberId) => {
+                  setTime(time);
+                  if (barberId && selectedBarber.id === 'any') {
+                    const assignedBarber = barbers.find(b => b.id === barberId);
+                    if (assignedBarber) {
+                      setBarber(assignedBarber);
+                    }
+                  }
+                }}
               />
               {canProceedFromStep2 && (
                 <div className="flex justify-end">
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     onClick={goNext}
                     data-testid="button-next-step2"
                   >
@@ -244,47 +314,6 @@ export default function BookingFlow() {
 
           {currentStep === 3 && selectedService && selectedBarber && selectedDate && selectedTime && (
             <div className="space-y-6">
-              {!isAuthenticated && (
-                <Card data-testid="card-login-prompt">
-                  <CardHeader>
-                    <CardTitle>¿Ya tienes una cuenta?</CardTitle>
-                    <CardDescription>
-                      Inicia sesión para completar automáticamente tus datos o crea una cuenta nueva
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col sm:flex-row gap-2">
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        setAuthDialogMode('login');
-                        setShowAuthDialog(true);
-                      }}
-                      data-testid="button-open-login"
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Iniciar Sesión
-                    </Button>
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        setAuthDialogMode('register');
-                        setShowAuthDialog(true);
-                      }}
-                      data-testid="button-open-register"
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Registrarse
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {}}
-                      data-testid="button-continue-without-login"
-                    >
-                      Continuar sin iniciar sesión
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
 
               {clientStatsLoading && isAuthenticated ? (
                 <div className="space-y-4" data-testid="skeleton-client-form">

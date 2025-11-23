@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import LandingHero from '@/components/LandingHero';
-import BookingFlow from './BookingFlow';
 import AuthDialog from '@/components/AuthDialog';
 import { Button } from '@/components/ui/button';
 import { apiRequest, queryClient, getQueryFn } from '@/lib/queryClient';
@@ -11,7 +10,6 @@ import { LayoutDashboard } from 'lucide-react';
 import type { AuthResponse } from '@shared/schema';
 
 export default function Home() {
-  const [showBooking, setShowBooking] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [, setLocation] = useLocation();
@@ -72,9 +70,7 @@ export default function Home() {
     setAuthDialogOpen(true);
   };
 
-  if (showBooking) {
-    return <BookingFlow />;
-  }
+
 
   return (
     <>
@@ -109,7 +105,7 @@ export default function Home() {
           </div>
         )}
         <LandingHero
-          onBookingClick={() => setShowBooking(true)}
+          onBookingClick={() => setLocation('/book')}
           onLoginClick={handleLoginClick}
           onRegisterClick={authData?.user ? undefined : handleRegisterClick}
           isLoggedIn={!!authData?.user}

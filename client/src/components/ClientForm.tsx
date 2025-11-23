@@ -39,7 +39,7 @@ const clientFormSchema = z.object({
       '+52': 'MX',  // Mexico
       '+34': 'ES',  // Spain
     };
-    
+
     const countryISO = countryMap[data.countryCode] || 'CO';
     const phoneNumber = parsePhoneNumber(data.phone, countryISO);
     return phoneNumber.isValid();
@@ -114,11 +114,11 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
         '+52': 'MX',
         '+34': 'ES',
       };
-      
+
       const countryISO = countryMap[data.countryCode] || 'CO';
       const phoneNumber = parsePhoneNumber(data.phone, countryISO);
       const phoneE164 = phoneNumber.format('E.164');
-      
+
       onSubmit({
         fullName: data.fullName,
         phoneE164,
@@ -148,9 +148,9 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
               <FormItem>
                 <FormLabel>Nombre Completo *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Juan Pérez" 
-                    {...field} 
+                  <Input
+                    placeholder="Juan Pérez"
+                    {...field}
                     data-testid="input-name"
                   />
                 </FormControl>
@@ -174,11 +174,36 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="+57">🇨🇴 +57</SelectItem>
-                        <SelectItem value="+58">🇻🇪 +58</SelectItem>
-                        <SelectItem value="+1">🇺🇸 +1</SelectItem>
-                        <SelectItem value="+52">🇲🇽 +52</SelectItem>
-                        <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                        <SelectItem value="+57">
+                          <div className="flex items-center">
+                            <img src="https://flagcdn.com/w20/co.png" alt="Colombia" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                            +57
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="+58">
+                          <div className="flex items-center">
+                            <img src="https://flagcdn.com/w20/ve.png" alt="Venezuela" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                            +58
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="+1">
+                          <div className="flex items-center">
+                            <img src="https://flagcdn.com/w20/us.png" alt="USA" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                            +1
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="+52">
+                          <div className="flex items-center">
+                            <img src="https://flagcdn.com/w20/mx.png" alt="Mexico" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                            +52
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="+34">
+                          <div className="flex items-center">
+                            <img src="https://flagcdn.com/w20/es.png" alt="España" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                            +34
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -190,8 +215,8 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
                 render={({ field }) => (
                   <FormItem className="flex-1">
                     <FormControl>
-                      <Input 
-                        placeholder="3001234567" 
+                      <Input
+                        placeholder="3001234567"
                         {...field}
                         data-testid="input-phone"
                       />
@@ -210,9 +235,9 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
               <FormItem>
                 <FormLabel>Correo Electrónico *</FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     type="email"
-                    placeholder="juan@ejemplo.com" 
+                    placeholder="juan@ejemplo.com"
                     {...field}
                     data-testid="input-email"
                   />
@@ -229,7 +254,7 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
               <FormItem>
                 <FormLabel>Notas (Opcional)</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Alguna preferencia o comentario especial..."
                     className="resize-none"
                     rows={3}
@@ -242,9 +267,9 @@ export default function ClientForm({ draftData, dataVersion, onChange, onSubmit 
             )}
           />
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             size="lg"
             data-testid="button-submit-client-form"
           >

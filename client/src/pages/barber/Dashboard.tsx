@@ -29,6 +29,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { Appointment, BarberDashboardStats } from '@shared/schema';
 
 const TIMEZONE = 'America/Bogota';
@@ -57,7 +58,7 @@ export default function BarberDashboard() {
   const handlePresetChange = (preset: DatePreset) => {
     const now = new Date();
     let startDate: Date;
-    
+
     switch (preset) {
       case '7d':
         startDate = subDays(now, 6);
@@ -72,7 +73,7 @@ export default function BarberDashboard() {
         startDate = startOfYear(now);
         break;
     }
-    
+
     setDateRange({
       startDate: format(startDate, 'yyyy-MM-dd'),
       endDate: format(now, 'yyyy-MM-dd'),
@@ -89,21 +90,22 @@ export default function BarberDashboard() {
 
   const filteredAppointments = showOnlyToday
     ? appointments?.filter((appt) => {
-        const apptDate = new Date(appt.startDateTime);
-        return apptDate >= startOfToday && 
-               apptDate < endOfToday &&
-               (appt.status === 'agendado' || appt.status === 'reagendado');
-      }) || []
+      const apptDate = new Date(appt.startDateTime);
+      return apptDate >= startOfToday &&
+        apptDate < endOfToday &&
+        (appt.status === 'agendado' || appt.status === 'reagendado');
+    }) || []
     : appointments?.filter((appt) => {
-        const apptDate = new Date(appt.startDateTime);
-        return apptDate >= startDateObj && 
-               apptDate <= endDateObj &&
-               (appt.status === 'agendado' || appt.status === 'reagendado' || appt.status === 'completado');
-      }) || [];
+      const apptDate = new Date(appt.startDateTime);
+      return apptDate >= startDateObj &&
+        apptDate <= endDateObj &&
+        (appt.status === 'agendado' || appt.status === 'reagendado' || appt.status === 'completado');
+    }) || [];
 
   function formatDateTime(dateTime: string) {
     const zonedDate = toZonedTime(new Date(dateTime), TIMEZONE);
-    return format(zonedDate, "HH:mm");
+    const time24 = format(zonedDate, "HH:mm");
+    return formatTime12Hour(time24);
   }
 
   function formatDate(dateTime: string) {
@@ -272,7 +274,7 @@ export default function BarberDashboard() {
                 <Skeleton className="w-full h-full" />
               </div>
             ) : chartData.length === 0 ? (
-              <div 
+              <div
                 className="h-[300px] flex items-center justify-center text-muted-foreground"
                 data-testid="text-no-chart-data"
               >
@@ -298,7 +300,7 @@ export default function BarberDashboard() {
                 <Skeleton className="w-full h-full" />
               </div>
             ) : pieChartData.length === 0 ? (
-              <div 
+              <div
                 className="h-[300px] flex items-center justify-center text-muted-foreground"
                 data-testid="text-no-pie-data"
               >
@@ -358,45 +360,45 @@ export default function BarberDashboard() {
             ) : (
               <div className="w-full overflow-x-auto">
                 <Table className="min-w-[600px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[100px] whitespace-nowrap">Fecha</TableHead>
-                    <TableHead className="min-w-[80px] whitespace-nowrap">Hora</TableHead>
-                    <TableHead className="min-w-[120px]">Cliente</TableHead>
-                    <TableHead className="min-w-[100px]">Servicio</TableHead>
-                    <TableHead className="min-w-[90px]">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAppointments.length === 0 ? (
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No tienes citas {showOnlyToday ? 'para hoy' : 'en el período seleccionado'}
-                      </TableCell>
+                      <TableHead className="min-w-[100px] whitespace-nowrap">Fecha</TableHead>
+                      <TableHead className="min-w-[80px] whitespace-nowrap">Hora</TableHead>
+                      <TableHead className="min-w-[120px]">Cliente</TableHead>
+                      <TableHead className="min-w-[100px]">Servicio</TableHead>
+                      <TableHead className="min-w-[90px]">Estado</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredAppointments.map((appt) => (
-                      <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell className="whitespace-nowrap" data-testid="text-appointment-date">
-                          {formatDate(appt.startDateTime)}
-                        </TableCell>
-                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-time">
-                          {formatDateTime(appt.startDateTime)}
-                        </TableCell>
-                        <TableCell data-testid="text-client-name">
-                          {appt.client?.fullName || 'N/A'}
-                        </TableCell>
-                        <TableCell data-testid="text-service-name">
-                          {appt.service?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(appt.status)}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAppointments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No tienes citas {showOnlyToday ? 'para hoy' : 'en el período seleccionado'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      filteredAppointments.map((appt) => (
+                        <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
+                          <TableCell className="whitespace-nowrap" data-testid="text-appointment-date">
+                            {formatDate(appt.startDateTime)}
+                          </TableCell>
+                          <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-time">
+                            {formatDateTime(appt.startDateTime)}
+                          </TableCell>
+                          <TableCell data-testid="text-client-name">
+                            {appt.client?.fullName || 'N/A'}
+                          </TableCell>
+                          <TableCell data-testid="text-service-name">
+                            {appt.service?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(appt.status)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { formatInTimeZone } from 'date-fns-tz';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { Service, Barber } from '@shared/schema';
 
 interface BookingReviewProps {
@@ -42,9 +43,9 @@ export default function BookingReview({
       const [hours, minutes] = time.split(':');
       const appointmentDate = new Date(date);
       appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-      
+
       const startDateTime = formatInTimeZone(appointmentDate, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
-      
+
       const res = await apiRequest('POST', '/api/appointments', {
         serviceId: service.id,
         barberId: barber.id,
@@ -137,7 +138,7 @@ export default function BookingReview({
             <Clock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Hora</p>
-              <p className="font-medium text-sm sm:text-base" data-testid="text-appointment-time">{time}</p>
+              <p className="font-medium text-sm sm:text-base" data-testid="text-appointment-time">{formatTime12Hour(time)}</p>
             </div>
           </div>
         </div>
@@ -174,8 +175,8 @@ export default function BookingReview({
         </div>
       </Card>
 
-      <Button 
-        size="lg" 
+      <Button
+        size="lg"
         className="w-full"
         onClick={() => createAppointmentMutation.mutate()}
         disabled={createAppointmentMutation.isPending}

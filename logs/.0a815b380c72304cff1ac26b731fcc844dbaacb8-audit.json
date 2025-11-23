@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "c:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\.0a815b380c72304cff1ac26b731fcc844dbaacb8-audit.json",
+    "files": [
+        {
+            "date": 1763765220084,
+            "name": "c:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\error-2025-11-21.log",
+            "hash": "bade2c06e8bb12c9709d3dd8db2089ccbad36e7416eee5a84fbe857b86ad3917"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -8,9 +8,9 @@ interface Step {
 
 const steps: Step[] = [
   { number: 1, label: 'Servicio' },
-  { number: 2, label: 'Fecha y Hora' },
-  { number: 3, label: 'Contacto' },
-  { number: 4, label: 'Confirme' },
+  { number: 2, label: 'Fecha y hora' },
+  { number: 3, label: 'Datos' },
+  { number: 4, label: 'Confirmación' },
 ];
 
 interface BookingProgressProps {
@@ -35,8 +35,8 @@ export default function BookingProgress({ currentStep }: BookingProgressProps) {
                 currentStep > step.number
                   ? "bg-primary border-primary text-primary-foreground"
                   : currentStep === step.number
-                  ? "bg-primary border-primary text-primary-foreground ring-4 ring-primary/20"
-                  : "bg-background border-border text-muted-foreground"
+                    ? "bg-primary border-primary text-primary-foreground ring-4 ring-primary/20"
+                    : "bg-background border-border text-muted-foreground"
               )}>
                 {currentStep > step.number ? (
                   <Check className="w-5 h-5" />

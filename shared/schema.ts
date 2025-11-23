@@ -123,7 +123,7 @@ export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 // Availability types
 export const availabilityRequestSchema = z.object({
   serviceId: z.string().uuid(),
-  barberId: z.string().uuid(),
+  barberId: z.union([z.string().uuid(), z.literal('any')]),
   date: z.string(), // "2025-11-10"
   excludeAppointmentId: z.string().uuid().optional(), // Optional: exclude this appointment when calculating (for rescheduling)
 });
@@ -134,6 +134,7 @@ export interface TimeSlot {
   startTime: string; // "09:00"
   endTime: string; // "09:30"
   available: boolean;
+  barberId?: string; // Optional: ID of the barber available for this slot (used for 'any' selection)
 }
 
 // Config types
@@ -164,8 +165,12 @@ export interface DashboardStats {
   appointmentsThisWeek: number;
   appointmentsThisMonth: number;
   totalClients: number;
+  clientsInPeriod: number;
   totalRevenueCOP: number;
   revenueThisMonth: number;
+  statusDistribution: Record<string, number>;
+  barberStats: Array<{ barberName: string; completedAppointments: number }>;
+  serviceStats: Array<{ serviceName: string; count: number }>;
   timeSeries: DashboardTimeSeriesPoint[];
 }
 

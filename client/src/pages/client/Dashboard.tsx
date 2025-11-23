@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Calendar, Clock, History, Plus } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { Appointment } from '@shared/schema';
 
 const TIMEZONE = 'America/Bogota';
@@ -28,7 +29,7 @@ interface ClientStats {
 
 export default function ClientDashboard() {
   const [, setLocation] = useLocation();
-  
+
   const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
     queryKey: ['/api/client/stats'],
   });
@@ -39,13 +40,16 @@ export default function ClientDashboard() {
 
   const upcomingAppointments = appointments?.filter((appt) => {
     const apptDate = new Date(appt.startDateTime);
-    return apptDate >= new Date() && 
-           (appt.status === 'agendado' || appt.status === 'reagendado');
+    return apptDate >= new Date() &&
+      (appt.status === 'agendado' || appt.status === 'reagendado');
   }).slice(0, 5) || [];
 
   function formatDateTime(dateTime: string) {
     const zonedDate = toZonedTime(new Date(dateTime), TIMEZONE);
-    return format(zonedDate, "dd/MM/yyyy HH:mm");
+    const date = format(zonedDate, 'dd/MM/yyyy');
+    const time24 = format(zonedDate, 'HH:mm');
+    const time12 = formatTime12Hour(time24);
+    return `${date} ${time12}`;
   }
 
   function getStatusBadge(status: string) {
@@ -122,8 +126,8 @@ export default function ClientDashboard() {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <div className="text-2xl font-bold" data-testid="stat-next-appointment">
-                  {upcomingAppointments.length > 0 
-                    ? format(toZonedTime(new Date(upcomingAppointments[0].startDateTime), TIMEZONE), "HH:mm")
+                  {upcomingAppointments.length > 0
+                    ? formatTime12Hour(format(toZonedTime(new Date(upcomingAppointments[0].startDateTime), TIMEZONE), "HH:mm"))
                     : '-'}
                 </div>
               )}
@@ -148,41 +152,41 @@ export default function ClientDashboard() {
             ) : (
               <div className="w-full overflow-x-auto">
                 <Table className="min-w-[550px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[140px] whitespace-nowrap">Fecha y Hora</TableHead>
-                    <TableHead className="min-w-[100px]">Barbero</TableHead>
-                    <TableHead className="min-w-[100px]">Servicio</TableHead>
-                    <TableHead className="min-w-[90px]">Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {upcomingAppointments.length === 0 ? (
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No tienes citas próximas
-                      </TableCell>
+                      <TableHead className="min-w-[140px] whitespace-nowrap">Fecha y Hora</TableHead>
+                      <TableHead className="min-w-[100px]">Barbero</TableHead>
+                      <TableHead className="min-w-[100px]">Servicio</TableHead>
+                      <TableHead className="min-w-[90px]">Estado</TableHead>
                     </TableRow>
-                  ) : (
-                    upcomingAppointments.map((appt) => (
-                      <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
-                          {formatDateTime(appt.startDateTime)}
-                        </TableCell>
-                        <TableCell data-testid="text-barber-name">
-                          {appt.barber?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell data-testid="text-service-name">
-                          {appt.service?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(appt.status)}
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingAppointments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No tienes citas próximas
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      upcomingAppointments.map((appt) => (
+                        <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
+                          <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
+                            {formatDateTime(appt.startDateTime)}
+                          </TableCell>
+                          <TableCell data-testid="text-barber-name">
+                            {appt.barber?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell data-testid="text-service-name">
+                            {appt.service?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(appt.status)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

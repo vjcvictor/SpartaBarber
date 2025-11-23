@@ -31,6 +31,7 @@ import {
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingStore } from '@/lib/store';
+import { Eye, EyeOff } from 'lucide-react';
 import type { AuthResponse } from '@shared/schema';
 
 const loginSchema = z.object({
@@ -44,6 +45,10 @@ const registerSchema = z.object({
   countryCode: z.string().default('+57'),
   phone: z.string().min(7, 'Teléfono inválido'),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 }).refine((data) => {
   try {
     // Map country codes to country ISO codes
@@ -54,7 +59,7 @@ const registerSchema = z.object({
       '+52': 'MX',  // Mexico
       '+34': 'ES',  // Spain
     };
-    
+
     const countryISO = countryMap[data.countryCode] || 'CO';
     const phoneNumber = parsePhoneNumber(data.phone, countryISO);
     return phoneNumber.isValid();
@@ -78,6 +83,8 @@ interface AuthDialogProps {
 export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }: AuthDialogProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [formKey, setFormKey] = useState(0);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
   const { toast } = useToast();
   const { hydrateClientDraft } = useBookingStore();
 
@@ -104,6 +111,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
       countryCode: '+57',
       phone: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
@@ -115,14 +123,14 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
     onSuccess: async (data: AuthResponse) => {
       queryClient.setQueryData(['/api/auth/me'], data);
       await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      
+
       // Fetch client stats to get phone number
       const statsRes = await fetch('/api/client/stats');
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         const phoneWithoutCode = statsData.phoneE164?.replace(/^\+\d{1,3}/, '').trim() || '';
         const countryCode = statsData.phoneE164?.match(/^\+\d{1,3}/)?.[0] || '+57';
-        
+
         hydrateClientDraft({
           fullName: statsData.clientName || '',
           countryCode,
@@ -131,7 +139,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
           notes: '',
         });
       }
-      
+
       toast({
         title: '¡Bienvenido!',
         description: `Hola ${data.user.email}`,
@@ -158,7 +166,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
         '+52': 'MX',
         '+34': 'ES',
       };
-      
+
       const countryISO = countryMap[data.countryCode] || 'CO';
       const phoneNumber = parsePhoneNumber(data.phone, countryISO);
       const phoneE164 = phoneNumber.format('E.164');
@@ -174,7 +182,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
     onSuccess: (data: AuthResponse & { registeredPhone?: string; registeredCountryCode?: string; registeredFullName?: string }) => {
       queryClient.setQueryData(['/api/auth/me'], data);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      
+
       // Auto-populate ClientForm with registration data
       hydrateClientDraft({
         fullName: data.registeredFullName || '',
@@ -183,7 +191,7 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
         email: data.user.email,
         notes: '',
       });
-      
+
       toast({
         title: '¡Cuenta creada!',
         description: `Bienvenido ${data.user.email}`,
@@ -340,11 +348,36 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="+57">🇨🇴 +57</SelectItem>
-                            <SelectItem value="+58">🇻🇪 +58</SelectItem>
-                            <SelectItem value="+1">🇺🇸 +1</SelectItem>
-                            <SelectItem value="+52">🇲🇽 +52</SelectItem>
-                            <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                            <SelectItem value="+57">
+                              <div className="flex items-center">
+                                <img src="https://flagcdn.com/w20/co.png" alt="Colombia" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                +57
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="+58">
+                              <div className="flex items-center">
+                                <img src="https://flagcdn.com/w20/ve.png" alt="Venezuela" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                +58
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="+1">
+                              <div className="flex items-center">
+                                <img src="https://flagcdn.com/w20/us.png" alt="USA" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                +1
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="+52">
+                              <div className="flex items-center">
+                                <img src="https://flagcdn.com/w20/mx.png" alt="Mexico" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                +52
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="+34">
+                              <div className="flex items-center">
+                                <img src="https://flagcdn.com/w20/es.png" alt="España" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                +34
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -377,13 +410,62 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'login' }
                   <FormItem>
                     <FormLabel>Contraseña</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        autoComplete="new-password"
-                        {...field}
-                        data-testid="input-register-password"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showRegisterPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          className="pr-12"
+                          {...field}
+                          data-testid="input-register-password"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                          onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                          tabIndex={-1}
+                        >
+                          {showRegisterPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={registerForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Contraseña</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showRegisterConfirmPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          className="pr-12"
+                          {...field}
+                          data-testid="input-register-confirm-password"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                          onClick={() => setShowRegisterConfirmPassword(!showRegisterConfirmPassword)}
+                          tabIndex={-1}
+                        >
+                          {showRegisterConfirmPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -1,0 +1,25 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\.356c2b6a0555ab590c99908cce4900754a785acf-audit.json",
+    "files": [
+        {
+            "date": 1763696094827,
+            "name": "C:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\app-2025-11-20.log",
+            "hash": "fe7534193c79cde0dbd32e66577dd511f74cff22ddd256c94c1e57788688ebf4"
+        },
+        {
+            "date": 1763701459037,
+            "name": "C:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\app-2025-11-21.log",
+            "hash": "95f1d785fde1a0eb54692e55348840cc071b6c286837a9d0b326f86921983eed"
+        },
+        {
+            "date": 1763852927678,
+            "name": "C:\\Users\\victo\\Documents\\PROYECTOS\\BARBERIA SPARTA\\BARBER REPLIT\\SpartaBarber\\logs\\app-2025-11-22.log",
+            "hash": "3d0536a6c38e503fd2de887e7dd6d43ce1fb5e88d5b5dac93a1b9e81d90cd6e9"
+        }
+    ],
+    "hashType": "sha256"
+}

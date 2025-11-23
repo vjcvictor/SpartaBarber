@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Calendar, Scissors, Clock, Award, UserPlus } from 'lucide-react';
-import heroImage from '@assets/stock_images/professional_barbers_bc29be2c.jpg';
+import { Calendar, Clock, Award, UserPlus } from 'lucide-react';
 
 interface LandingHeroProps {
   onBookingClick: () => void;
@@ -9,34 +8,38 @@ interface LandingHeroProps {
   isLoggedIn?: boolean;
 }
 
-export default function LandingHero({ 
-  onBookingClick, 
-  onLoginClick, 
+export default function LandingHero({
+  onBookingClick,
+  onLoginClick,
   onRegisterClick,
-  isLoggedIn = false 
+  isLoggedIn = false
 }: LandingHeroProps) {
   return (
     <div className="min-h-screen bg-background">
-      <div 
+      <div
         className="relative min-h-[500px] sm:h-[600px] bg-cover bg-center flex items-center justify-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
+        style={{ backgroundImage: `url('/hero-bg.jpg')` }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-secondary/90 to-secondary/70" />
-        
+
         <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto w-full">
-          <div className="inline-block p-3 bg-primary/20 rounded-full mb-4 sm:mb-6">
-            <Scissors className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
+          <div className="mb-4 sm:mb-6 flex justify-center">
+            <img
+              src="/logo.png"
+              alt="Sparta Barbería Logo"
+              className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-lg"
+            />
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-3 sm:mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[#e6dfcf] mb-3 sm:mb-4">
             Sparta Barbería
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-primary-foreground/90 mb-6 sm:mb-8 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl text-[#e6dfcf]/90 mb-6 sm:mb-8 max-w-2xl mx-auto">
             Estilo y tradición en cada corte. Agenda tu cita en minutos.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center">
-            <Button 
-              size="lg" 
-              className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto"
+            <Button
+              size="lg"
+              className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-black border-none"
               onClick={onBookingClick}
               data-testid="button-booking-start"
             >
@@ -45,20 +48,18 @@ export default function LandingHero({
             </Button>
             {!isLoggedIn ? (
               <>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  className="text-base sm:text-lg px-6 sm:px-8 bg-background/80 backdrop-blur-sm w-full sm:w-auto"
+                <Button
+                  size="lg"
+                  className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-zinc-950 hover:bg-zinc-900 text-[#e6dfcf] border-none"
                   onClick={onLoginClick}
                   data-testid="button-login"
                 >
                   Iniciar Sesión
                 </Button>
                 {onRegisterClick && (
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    className="text-base sm:text-lg px-6 sm:px-8 bg-background/80 backdrop-blur-sm w-full sm:w-auto"
+                  <Button
+                    size="lg"
+                    className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-zinc-950 hover:bg-zinc-900 text-[#e6dfcf] border-none"
                     onClick={onRegisterClick}
                     data-testid="button-register"
                   >
@@ -68,10 +69,9 @@ export default function LandingHero({
                 )}
               </>
             ) : (
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="text-base sm:text-lg px-6 sm:px-8 bg-background/80 backdrop-blur-sm w-full sm:w-auto"
+              <Button
+                size="lg"
+                className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-zinc-950 hover:bg-zinc-900 text-[#e6dfcf] border-none"
                 onClick={onLoginClick}
                 data-testid="button-logout-hero"
               >
@@ -125,8 +125,8 @@ export default function LandingHero({
           <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
             Agenda tu cita ahora y experimenta el mejor servicio de barbería en Colombia
           </p>
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto"
             onClick={onBookingClick}
             data-testid="button-booking-cta"
@@ -135,6 +135,6 @@ export default function LandingHero({
           </Button>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

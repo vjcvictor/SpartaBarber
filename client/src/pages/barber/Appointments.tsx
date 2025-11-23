@@ -31,18 +31,34 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { Appointment } from '@shared/schema';
 
 const TIMEZONE = 'America/Bogota';
 const PAGE_SIZE = 10;
 
 export default function BarberAppointments() {
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [page, setPage] = useState(1);
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+
+  // States for confirmation dialogs
+  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  const [appointmentToComplete, setAppointmentToComplete] = useState<Appointment | null>(null);
+
   const { toast } = useToast();
 
   const { data: appointments, isLoading } = useQuery<Appointment[]>({
@@ -60,6 +76,7 @@ export default function BarberAppointments() {
         title: 'Estado actualizado',
         description: 'El estado de la cita se ha actualizado correctamente',
       });
+      setAppointmentToComplete(null);
     },
     onError: (error: Error) => {
       toast({
@@ -72,6 +89,7 @@ export default function BarberAppointments() {
 
   const filteredAppointments = appointments?.filter((appointment) => {
     if (statusFilter === 'all') return true;
+    if (statusFilter === 'active') return appointment.status !== 'completado';
     return appointment.status === statusFilter;
   }) || [];
 
@@ -84,7 +102,10 @@ export default function BarberAppointments() {
 
   function formatDateTime(dateTime: string) {
     const zonedDate = toZonedTime(new Date(dateTime), TIMEZONE);
-    return format(zonedDate, 'dd/MM/yyyy HH:mm');
+    const date = format(zonedDate, 'dd/MM/yyyy');
+    const time24 = format(zonedDate, 'HH:mm');
+    const time12 = formatTime12Hour(time24);
+    return `${date} ${time12}`;
   }
 
   const getStatusColor = (status: string): string => {
@@ -120,6 +141,7 @@ export default function BarberAppointments() {
         title: 'Cita cancelada',
         description: 'La cita se ha cancelado correctamente',
       });
+      setAppointmentToCancel(null);
     },
     onError: (error: Error) => {
       toast({
@@ -148,10 +170,12 @@ export default function BarberAppointments() {
               <SelectValue placeholder="Filtrar por estado" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="active">Citas</SelectItem>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="agendado">Agendado</SelectItem>
               <SelectItem value="cancelado">Cancelado</SelectItem>
               <SelectItem value="reagendado">Reagendado</SelectItem>
+              <SelectItem value="completado">Completado</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">
@@ -170,124 +194,124 @@ export default function BarberAppointments() {
             <>
               <div className="w-full overflow-x-auto">
                 <Table className="min-w-[650px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[130px] whitespace-nowrap">Fecha y Hora</TableHead>
-                    <TableHead className="min-w-[150px]">Cliente</TableHead>
-                    <TableHead className="min-w-[120px]">Servicio</TableHead>
-                    <TableHead className="min-w-[90px]">Estado</TableHead>
-                    <TableHead className="min-w-[110px]">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedAppointments.length === 0 ? (
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No hay citas
-                      </TableCell>
+                      <TableHead className="min-w-[130px] whitespace-nowrap">Fecha y Hora</TableHead>
+                      <TableHead className="min-w-[150px]">Cliente</TableHead>
+                      <TableHead className="min-w-[120px]">Servicio</TableHead>
+                      <TableHead className="min-w-[90px]">Estado</TableHead>
+                      <TableHead className="min-w-[110px]">Acciones</TableHead>
                     </TableRow>
-                  ) : (
-                    paginatedAppointments.map((appt) => (
-                      <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
-                        <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
-                          {formatDateTime(appt.startDateTime)}
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedAppointments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No hay citas
                         </TableCell>
-                        <TableCell data-testid="text-client-name">
-                          <div>
-                            <p className="font-medium">{appt.client?.fullName || 'N/A'}</p>
-                            <p className="text-sm text-muted-foreground">{appt.client?.phoneE164}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell data-testid="text-service-name">
-                          {appt.service?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={getStatusColor(appt.status)}
-                            data-testid="badge-appointment-status"
-                          >
-                            {appt.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                data-testid={`button-actions-${appt.id.substring(0, 8)}`}
-                                disabled={updateStatusMutation.isPending || cancelMutation.isPending}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {appt.status !== 'completado' && appt.status !== 'cancelado' && (
-                                <>
+                      </TableRow>
+                    ) : (
+                      paginatedAppointments.map((appt) => (
+                        <TableRow key={appt.id} data-testid={`row-appointment-${appt.id}`}>
+                          <TableCell className="font-medium whitespace-nowrap" data-testid="text-appointment-datetime">
+                            {formatDateTime(appt.startDateTime)}
+                          </TableCell>
+                          <TableCell data-testid="text-client-name">
+                            <div>
+                              <p className="font-medium">{appt.client?.fullName || 'N/A'}</p>
+                              <p className="text-sm text-muted-foreground">{appt.client?.phoneE164}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell data-testid="text-service-name">
+                            {appt.service?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={getStatusColor(appt.status)}
+                              data-testid="badge-appointment-status"
+                            >
+                              {appt.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  data-testid={`button-actions-${appt.id.substring(0, 8)}`}
+                                  disabled={updateStatusMutation.isPending || cancelMutation.isPending}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {appt.status !== 'completado' && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        if (!canEditAppointment(appt.startDateTime)) {
+                                          toast({
+                                            title: 'No se puede reagendar',
+                                            description: 'No se pueden reagendar citas con menos de 1 hora de anticipación',
+                                            variant: 'destructive',
+                                          });
+                                          return;
+                                        }
+                                        setSelectedAppointment(appt);
+                                        setRescheduleDialogOpen(true);
+                                      }}
+                                      disabled={!canEditAppointment(appt.startDateTime)}
+                                      data-testid={`menu-item-reschedule-${appt.id.substring(0, 8)}`}
+                                    >
+                                      <Calendar className="w-4 h-4 mr-2" />
+                                      Reagendar
+                                      {!canEditAppointment(appt.startDateTime) && (
+                                        <AlertCircle className="w-3 h-3 ml-2 text-destructive" />
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => setAppointmentToComplete(appt)}
+                                      data-testid={`menu-item-complete-${appt.id.substring(0, 8)}`}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Marcar completado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
+                                {appt.status !== 'cancelado' && appt.status !== 'completado' && (
                                   <DropdownMenuItem
                                     onClick={() => {
                                       if (!canEditAppointment(appt.startDateTime)) {
                                         toast({
-                                          title: 'No se puede reagendar',
-                                          description: 'No se pueden reagendar citas con menos de 1 hora de anticipación',
+                                          title: 'No se puede cancelar',
+                                          description: 'No se pueden cancelar citas con menos de 1 hora de anticipación',
                                           variant: 'destructive',
                                         });
                                         return;
                                       }
-                                      setSelectedAppointment(appt);
-                                      setRescheduleDialogOpen(true);
+                                      setAppointmentToCancel(appt);
                                     }}
+                                    className="text-destructive focus:text-destructive"
+                                    data-testid={`menu-item-cancel-${appt.id.substring(0, 8)}`}
                                     disabled={!canEditAppointment(appt.startDateTime)}
-                                    data-testid={`menu-item-reschedule-${appt.id.substring(0, 8)}`}
                                   >
-                                    <Calendar className="w-4 h-4 mr-2" />
-                                    Reagendar
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Cancelar cita
                                     {!canEditAppointment(appt.startDateTime) && (
-                                      <AlertCircle className="w-3 h-3 ml-2 text-destructive" />
+                                      <AlertCircle className="w-3 h-3 ml-2" />
                                     )}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => updateStatusMutation.mutate({ id: appt.id, status: 'completado' })}
-                                    data-testid={`menu-item-complete-${appt.id.substring(0, 8)}`}
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Marcar completado
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                </>
-                              )}
-                              {appt.status !== 'cancelado' && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    if (!canEditAppointment(appt.startDateTime)) {
-                                      toast({
-                                        title: 'No se puede cancelar',
-                                        description: 'No se pueden cancelar citas con menos de 1 hora de anticipación',
-                                        variant: 'destructive',
-                                      });
-                                      return;
-                                    }
-                                    cancelMutation.mutate(appt.id);
-                                  }}
-                                  className="text-destructive focus:text-destructive"
-                                  data-testid={`menu-item-cancel-${appt.id.substring(0, 8)}`}
-                                  disabled={!canEditAppointment(appt.startDateTime)}
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancelar cita
-                                  {!canEditAppointment(appt.startDateTime) && (
-                                    <AlertCircle className="w-3 h-3 ml-2" />
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
 
               {totalPages > 1 && (
@@ -333,6 +357,53 @@ export default function BarberAppointments() {
           role="barber"
         />
       )}
+
+      <AlertDialog open={!!appointmentToCancel} onOpenChange={(open) => !open && setAppointmentToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción cancelará la cita. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (appointmentToCancel) {
+                  cancelMutation.mutate(appointmentToCancel.id);
+                }
+              }}
+            >
+              Sí, cancelar cita
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!appointmentToComplete} onOpenChange={(open) => !open && setAppointmentToComplete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como completada?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esto marcará la cita como finalizada y se registrará en el historial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (appointmentToComplete) {
+                  updateStatusMutation.mutate({ id: appointmentToComplete.id, status: 'completado' });
+                }
+              }}
+            >
+              Sí, completar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BarberLayout>
   );
 }

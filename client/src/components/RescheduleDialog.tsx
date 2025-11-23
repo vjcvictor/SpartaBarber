@@ -15,11 +15,15 @@ import {
 } from '@/components/ui/dialog';
 import { CalendarIcon } from 'lucide-react';
 import { format, addDays, startOfDay, parseISO } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatTime12Hour } from '@/lib/timeFormat';
 import type { TimeSlot } from '@shared/schema';
+
+const TIMEZONE = 'America/Bogota';
 
 interface RescheduleDialogProps {
   open: boolean;
@@ -81,11 +85,14 @@ export default function RescheduleDialog({
       }
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const newStartDateTime = `${dateStr}T${selectedTime}:00.000Z`;
+      // Combine date and time and convert to UTC from Bogota timezone
+      const dateTimeStr = `${dateStr} ${selectedTime}`;
+      const zonedDate = fromZonedTime(dateTimeStr, TIMEZONE);
+      const newStartDateTime = zonedDate.toISOString();
 
       let endpoint = '';
       let method: 'PUT' | 'PATCH' = 'PUT';
-      
+
       if (role === 'admin') {
         endpoint = `/api/admin/appointments/${appointmentId}`;
         method = 'PUT';
@@ -191,7 +198,7 @@ export default function RescheduleDialog({
           <div className="p-4 bg-muted/50 rounded-lg">
             <p className="text-sm font-medium mb-1">Fecha y hora actual:</p>
             <p className="text-sm text-muted-foreground">
-              {format(currentDate, "EEEE, d 'de' MMMM 'a las' HH:mm", { locale: es })}
+              {format(currentDate, "EEEE, d 'de' MMMM 'a las'", { locale: es })} {formatTime12Hour(format(currentDate, 'HH:mm'))}
             </p>
           </div>
 
@@ -199,14 +206,14 @@ export default function RescheduleDialog({
             <h3 className="text-base font-semibold mb-3">Selecciona nueva fecha</h3>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-4">
-                <TabsTrigger 
-                  value="today" 
+                <TabsTrigger
+                  value="today"
                   onClick={() => handleQuickDate(today, 'today')}
                   data-testid="reschedule-tab-today"
                 >
                   Hoy
                 </TabsTrigger>
-                <TabsTrigger 
+                <TabsTrigger
                   value="tomorrow"
                   onClick={() => handleQuickDate(tomorrow, 'tomorrow')}
                   data-testid="reschedule-tab-tomorrow"
@@ -269,7 +276,7 @@ export default function RescheduleDialog({
                     onClick={() => handleTimeSelect(slot)}
                     data-testid={`reschedule-time-${slot.startTime.replace(':', '-')}`}
                   >
-                    {slot.startTime}
+                    {formatTime12Hour(slot.startTime)}
                   </Button>
                 ))}
               </div>
