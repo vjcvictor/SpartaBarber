@@ -104,86 +104,93 @@ async function main() {
   });
   console.log('✅ Barber Miguel created');
 
-  // Create Services (let Prisma generate UUIDs)
-  // Check if services already exist by name to avoid duplicates
-  let service1 = await prisma.service.findFirst({ where: { name: 'Corte Clásico' } });
-  if (!service1) {
-    service1 = await prisma.service.create({
-      data: {
-        name: 'Corte Clásico',
-        icon: '✂️',
-        priceCOP: 15000,
-        description: 'Corte tradicional con tijera y máquina',
-        durationMin: 30,
-        category: 'Servicios individuales',
-        active: true,
-      },
-    });
-  }
+  // Define Services
+  const servicesData = [
+    // Servicios Individuales
+    { name: 'Corte', price: 20000, duration: 45, category: 'Servicios Individuales', icon: '✂️', description: 'Corte de cabello profesional' },
+    { name: 'Barba', price: 10000, duration: 20, category: 'Servicios Individuales', icon: '🧔', description: 'Arreglo y perfilado de barba' },
+    { name: 'Cejas', price: 5000, duration: 10, category: 'Servicios Individuales', icon: '✨', description: 'Diseño y limpieza de cejas' },
+    { name: 'Mascarilla', price: 10000, duration: 15, category: 'Servicios Individuales', icon: '🧖', description: 'Mascarilla facial exfoliante' },
 
-  let service2 = await prisma.service.findFirst({ where: { name: 'Corte + Barba' } });
-  if (!service2) {
-    service2 = await prisma.service.create({
-      data: {
-        name: 'Corte + Barba',
-        icon: '🧔‍♂️',
-        priceCOP: 25000,
-        description: 'Corte completo más arreglo de barba',
-        durationMin: 45,
-        category: 'Combo de dos servicios',
-        active: true,
-      },
-    });
-  }
+    // Combos de dos servicios
+    { name: 'Corte + Barba', price: 25000, duration: 60, category: 'Combos de dos servicios', icon: '✂️🧔', description: 'Corte de cabello y arreglo de barba' },
+    { name: 'Corte + Cejas', price: 23000, duration: 50, category: 'Combos de dos servicios', icon: '✂️✨', description: 'Corte de cabello y diseño de cejas' },
+    { name: 'Corte + Mascarilla', price: 30000, duration: 60, category: 'Combos de dos servicios', icon: '✂️🧖', description: 'Corte de cabello y mascarilla facial' },
+    { name: 'Barba + Cejas', price: 13000, duration: 30, category: 'Combos de dos servicios', icon: '🧔✨', description: 'Arreglo de barba y cejas' },
+    { name: 'Barba + Mascarilla', price: 20000, duration: 30, category: 'Combos de dos servicios', icon: '🧔🧖', description: 'Arreglo de barba y mascarilla' },
+    { name: 'Cejas + Mascarilla', price: 13000, duration: 20, category: 'Combos de dos servicios', icon: '✨🧖', description: 'Diseño de cejas y mascarilla' },
 
-  let service3 = await prisma.service.findFirst({ where: { name: 'Limpieza Facial' } });
-  if (!service3) {
-    service3 = await prisma.service.create({
-      data: {
-        name: 'Limpieza Facial',
-        icon: '💧',
-        priceCOP: 30000,
-        description: 'Tratamiento facial profundo',
-        durationMin: 40,
-        category: 'Servicios individuales',
-        active: true,
-      },
-    });
+    // Combos de tres servicios
+    { name: 'Corte + Barba + Cejas', price: 27000, duration: 70, category: 'Combos de tres servicios', icon: '✂️🧔✨', description: 'Paquete completo de corte y arreglo facial' },
+    { name: 'Corte + Barba + Mascarilla', price: 35000, duration: 75, category: 'Combos de tres servicios', icon: '✂️🧔🧖', description: 'Corte, barba y limpieza facial' },
+    { name: 'Corte + Cejas + Mascarilla', price: 33000, duration: 70, category: 'Combos de tres servicios', icon: '✂️✨🧖', description: 'Corte, cejas y limpieza facial' },
+    { name: 'Barba + Cejas + Mascarilla', price: 23000, duration: 40, category: 'Combos de tres servicios', icon: '🧔✨🧖', description: 'Mantenimiento facial completo' },
+
+    // Combo completo
+    { name: 'Combo Completo', price: 37000, duration: 90, category: 'Combo completo', icon: '👑', description: 'Experiencia total: Corte, Barba, Cejas y Mascarilla' },
+  ];
+
+  console.log('🔄 Syncing services...');
+
+  const createdServices = [];
+
+  for (const service of servicesData) {
+    // Upsert service to update if exists or create if new
+    // We use findFirst + upsert logic or just upsert if we had a unique name constraint.
+    // Since name is not unique in schema (but should be logically), we'll try to find by name first.
+
+    const existing = await prisma.service.findFirst({ where: { name: service.name } });
+
+    let result;
+    if (existing) {
+      result = await prisma.service.update({
+        where: { id: existing.id },
+        data: {
+          priceCOP: service.price,
+          durationMin: service.duration,
+          category: service.category,
+          icon: service.icon,
+          description: service.description,
+          active: true,
+        },
+      });
+    } else {
+      result = await prisma.service.create({
+        data: {
+          name: service.name,
+          priceCOP: service.price,
+          durationMin: service.duration,
+          category: service.category,
+          icon: service.icon,
+          description: service.description,
+          active: true,
+        },
+      });
+    }
+    createdServices.push(result);
   }
-  console.log('✅ Services created');
+  console.log(`✅ ${createdServices.length} services synced`);
 
   // Assign all services to both barbers
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber1.id, serviceId: service1.id } },
-    update: {},
-    create: { barberId: barber1.id, serviceId: service1.id },
-  });
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber1.id, serviceId: service2.id } },
-    update: {},
-    create: { barberId: barber1.id, serviceId: service2.id },
-  });
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber1.id, serviceId: service3.id } },
-    update: {},
-    create: { barberId: barber1.id, serviceId: service3.id },
-  });
+  const barbers = [barber1, barber2];
 
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber2.id, serviceId: service1.id } },
-    update: {},
-    create: { barberId: barber2.id, serviceId: service1.id },
-  });
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber2.id, serviceId: service2.id } },
-    update: {},
-    create: { barberId: barber2.id, serviceId: service2.id },
-  });
-  await prisma.barberService.upsert({
-    where: { barberId_serviceId: { barberId: barber2.id, serviceId: service3.id } },
-    update: {},
-    create: { barberId: barber2.id, serviceId: service3.id },
-  });
+  for (const barber of barbers) {
+    for (const service of createdServices) {
+      await prisma.barberService.upsert({
+        where: {
+          barberId_serviceId: {
+            barberId: barber.id,
+            serviceId: service.id,
+          },
+        },
+        create: {
+          barberId: barber.id,
+          serviceId: service.id,
+        },
+        update: {},
+      });
+    }
+  }
   console.log('✅ Services assigned to barbers');
 
   console.log('🎉 Seed completed successfully!');
