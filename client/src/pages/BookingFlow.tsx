@@ -290,12 +290,7 @@ export default function BookingFlow() {
                 onDateSelect={setDate}
                 onTimeSelect={(time, barberId) => {
                   setTime(time);
-                  if (barberId && selectedBarber.id === 'any') {
-                    const assignedBarber = barbers.find(b => b.id === barberId);
-                    if (assignedBarber) {
-                      setBarber(assignedBarber);
-                    }
-                  }
+
                 }}
               />
               {canProceedFromStep2 && (
