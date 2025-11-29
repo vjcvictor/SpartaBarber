@@ -192,6 +192,10 @@ router.post('/api/auth/register', authLimiter, async (req: Request, res: Respons
 
     await createAuditLog(user.id, user.role, 'register', 'user', user.id, null, req);
 
+    // Send welcome email
+    const { sendWelcomeEmail } = await import('./services/notificationHelpers');
+    sendWelcomeEmail(user.id).catch(err => logger.error('Welcome email error:', err));
+
     // New users won't have barber records, so accessibleRoles is just their role
     const accessibleRoles: ('ADMIN' | 'BARBER' | 'CLIENT')[] = [user.role as 'ADMIN' | 'BARBER' | 'CLIENT'];
 
@@ -278,6 +282,7 @@ router.get('/api/barbers', apiLimiter, async (req: Request, res: Response) => {
     if (serviceId) {
       barbers = await prisma.barber.findMany({
         where: {
+          active: true,
           services: {
             some: {
               serviceId: serviceId as string,
@@ -294,6 +299,7 @@ router.get('/api/barbers', apiLimiter, async (req: Request, res: Response) => {
       });
     } else {
       barbers = await prisma.barber.findMany({
+        where: { active: true },
         include: {
           services: {
             select: {
@@ -308,6 +314,8 @@ router.get('/api/barbers', apiLimiter, async (req: Request, res: Response) => {
       id: b.id,
       name: b.name,
       photoUrl: b.photoUrl,
+      phone: b.phone,
+      active: b.active,
       weeklySchedule: JSON.parse(b.weeklySchedule),
       exceptions: JSON.parse(b.exceptions),
       services: b.services.map((s) => s.serviceId),
@@ -467,6 +475,11 @@ router.post('/api/appointments', apiLimiter, async (req: Request, res: Response)
 
     logger.info(`Appointment created: ${appointment.id}`);
 
+    // Send notifications (email + WhatsApp)
+    const { notifyAppointmentCreated } = await import('./services/notifications');
+    notifyAppointmentCreated(appointment.id).catch(err => logger.error('Notification error:', err));
+
+
     res.json({
       id: appointment.id,
       serviceId: appointment.serviceId,
@@ -525,6 +538,8 @@ router.get('/api/appointments/:id', apiLimiter, async (req: Request, res: Respon
         id: appointment.barber.id,
         name: appointment.barber.name,
         photoUrl: appointment.barber.photoUrl,
+        phone: appointment.barber.phone,
+        active: appointment.barber.active,
         weeklySchedule: JSON.parse(appointment.barber.weeklySchedule),
         exceptions: JSON.parse(appointment.barber.exceptions),
         services: [],
@@ -569,6 +584,10 @@ router.delete('/api/appointments/:id', apiLimiter, async (req: Request, res: Res
     });
 
     await createAuditLog(null, 'CLIENT', 'update', 'appointment', id, { status: 'cancelado' }, req);
+
+    // Send cancellation notifications
+    const { notifyAppointmentCancelled } = await import('./services/notificationHelpers');
+    notifyAppointmentCancelled(id).catch(err => logger.error('Cancellation notification error:', err));
 
     res.json({ success: true });
   } catch (error) {
@@ -1901,6 +1920,8 @@ router.get(
         name: b.name,
         email: b.user.email,
         photoUrl: b.photoUrl,
+        phone: b.phone,
+        active: b.active,
         weeklySchedule: JSON.parse(b.weeklySchedule),
         exceptions: JSON.parse(b.exceptions),
         services: b.services.map((s) => s.serviceId),
@@ -1920,7 +1941,7 @@ router.post(
   requireRole('ADMIN'),
   async (req: AuthRequest, res: Response) => {
     try {
-      const { name, email, password, photoUrl, weeklySchedule, services } = createBarberSchema.parse(req.body);
+      const { name, email, password, photoUrl, phone, active, weeklySchedule, services } = createBarberSchema.parse(req.body);
 
       const existingUser = await prisma.user.findUnique({
         where: { email },
@@ -1941,6 +1962,8 @@ router.post(
             create: {
               name,
               photoUrl: photoUrl || null,
+              phone: phone || null,
+              active: active ?? true,
               weeklySchedule,
               exceptions: '[]',
               services: {
@@ -1974,6 +1997,8 @@ router.post(
         name: user.barber!.name,
         email: user.email,
         photoUrl: user.barber!.photoUrl,
+        phone: user.barber!.phone,
+        active: user.barber!.active,
         weeklySchedule: JSON.parse(user.barber!.weeklySchedule),
         exceptions: JSON.parse(user.barber!.exceptions),
         services,
@@ -1992,7 +2017,9 @@ router.put(
   async (req: AuthRequest, res: Response) => {
     try {
       const { id } = req.params;
+      console.log('Update barber body:', req.body); // DEBUG
       const data = updateBarberSchema.parse(req.body);
+      console.log('Parsed update data:', data); // DEBUG
 
       const barber = await prisma.barber.findUnique({
         where: { id },
@@ -2006,6 +2033,8 @@ router.put(
       const updateData: any = {};
       if (data.name) updateData.name = data.name;
       if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.active !== undefined) updateData.active = data.active;
       if (data.weeklySchedule) updateData.weeklySchedule = data.weeklySchedule;
 
       if (data.email || data.password) {
@@ -2065,6 +2094,8 @@ router.put(
         name: updatedBarber.name,
         email: updatedBarber.user.email,
         photoUrl: updatedBarber.photoUrl,
+        phone: updatedBarber.phone,
+        active: updatedBarber.active,
         weeklySchedule: JSON.parse(updatedBarber.weeklySchedule),
         exceptions: JSON.parse(updatedBarber.exceptions),
         services: updatedBarber.services.map((s) => s.serviceId),
@@ -2092,8 +2123,10 @@ router.delete(
         return res.status(404).json({ error: 'Barbero no encontrado' });
       }
 
-      await prisma.user.delete({
-        where: { id: barber.userId },
+      // Soft delete: set active to false instead of deleting
+      await prisma.barber.update({
+        where: { id },
+        data: { active: false },
       });
 
       await createAuditLog(
@@ -2208,6 +2241,13 @@ router.put(
       if (data.whatsappPhoneNumberId) updateData.whatsappPhoneNumberId = data.whatsappPhoneNumberId;
       if (data.whatsappBusinessId) updateData.whatsappBusinessId = data.whatsappBusinessId;
       if (data.whatsappFromNumber) updateData.whatsappFromNumber = data.whatsappFromNumber;
+      if (data.smtpHost) updateData.smtpHost = data.smtpHost;
+      if (data.smtpPort !== undefined) updateData.smtpPort = data.smtpPort;
+      if (data.smtpUser) updateData.smtpUser = data.smtpUser;
+      if (data.smtpPassword) updateData.smtpPassEnc = data.smtpPassword; // In production, encrypt this
+      if (data.smtpFrom) updateData.smtpFrom = data.smtpFrom;
+      if (data.smtpTls !== undefined) updateData.smtpTls = data.smtpTls;
+
 
       await prisma.config.update({
         where: { id: config.id },
@@ -2302,6 +2342,94 @@ router.get('/api/calendar/ics/:id', apiLimiter, async (req: Request, res: Respon
     logger.error('Get ICS error:', error);
     res.status(500).json({ error: 'Error al generar archivo ICS' });
   }
+});
+
+// Push Notification Subscription Endpoints
+router.post(
+  '/api/push/subscribe',
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { subscription, userAgent } = req.body;
+
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ error: 'Invalid subscription data' });
+      }
+
+      // Check if subscription already exists
+      const existing = await prisma.pushSubscription.findUnique({
+        where: { endpoint: subscription.endpoint },
+      });
+
+      if (existing) {
+        // Update existing subscription
+        await prisma.pushSubscription.update({
+          where: { endpoint: subscription.endpoint },
+          data: {
+            userId: req.user!.id,
+            p256dh: subscription.keys.p256dh,
+            auth: subscription.keys.auth,
+            userAgent,
+          },
+        });
+      } else {
+        // Create new subscription
+        await prisma.pushSubscription.create({
+          data: {
+            userId: req.user!.id,
+            endpoint: subscription.endpoint,
+            p256dh: subscription.keys.p256dh,
+            auth: subscription.keys.auth,
+            userAgent,
+          },
+        });
+      }
+
+      logger.info(`Push subscription saved for user ${req.user!.id}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Subscribe to push error:', error);
+      res.status(500).json({ error: 'Error al suscribirse a notificaciones' });
+    }
+  }
+);
+
+router.delete(
+  '/api/push/unsubscribe',
+  authMiddleware,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { endpoint } = req.body;
+
+      if (!endpoint) {
+        return res.status(400).json({ error: 'Endpoint is required' });
+      }
+
+      await prisma.pushSubscription.deleteMany({
+        where: {
+          endpoint,
+          userId: req.user!.id,
+        },
+      });
+
+      logger.info(`Push subscription removed for user ${req.user!.id}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Unsubscribe from push error:', error);
+      res.status(500).json({ error: 'Error al desuscribirse de notificaciones' });
+    }
+  }
+);
+
+// ============ HEALTH CHECK ============
+
+router.get('/api/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+  });
 });
 
 export default router;

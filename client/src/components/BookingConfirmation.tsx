@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Service, Barber } from '@/lib/store';
+import type { Service, Barber } from '@shared/schema';
 
 interface BookingConfirmationProps {
   service: Service;
@@ -42,11 +42,11 @@ export default function BookingConfirmation({
 
       <Card className="p-8 mb-6">
         <h2 className="text-xl font-semibold mb-6">Detalles de tu Cita</h2>
-        
+
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
-              <AvatarImage src={barber.photoUrl} alt={barber.name} />
+              <AvatarImage src={barber.photoUrl ?? undefined} alt={barber.name} />
               <AvatarFallback>{barber.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
@@ -90,10 +90,10 @@ export default function BookingConfirmation({
         <div className="text-sm text-center text-muted-foreground mb-4">
           ¿Quieres añadir esta cita a tu calendario?
         </div>
-        
+
         <div className="grid grid-cols-2 gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="gap-2"
             onClick={onDownloadICS}
             data-testid="button-download-google"
@@ -101,8 +101,8 @@ export default function BookingConfirmation({
             <Calendar className="w-4 h-4" />
             Google Calendar
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="gap-2"
             onClick={onDownloadICS}
             data-testid="button-download-outlook"
@@ -112,8 +112,8 @@ export default function BookingConfirmation({
           </Button>
         </div>
 
-        <Button 
-          className="w-full gap-2" 
+        <Button
+          className="w-full gap-2"
           size="lg"
           onClick={onNewBooking}
           data-testid="button-new-booking"
@@ -122,7 +122,7 @@ export default function BookingConfirmation({
           Agendar otra cita
         </Button>
 
-        <Button 
+        {/* <Button 
           variant="secondary"
           className="w-full gap-2"
           onClick={onRegister}
@@ -130,9 +130,9 @@ export default function BookingConfirmation({
         >
           <UserPlus className="w-5 h-5" />
           Registrarse
-        </Button>
+        </Button> */}
 
-        <Button 
+        <Button
           variant="outline"
           className="w-full"
           onClick={onLogin}

@@ -60,6 +60,8 @@ export interface Barber {
   id: string;
   name: string;
   photoUrl: string | null;
+  phone: string | null;
+  active: boolean;
   weeklySchedule: WeeklySchedule[];
   exceptions: ScheduleException[];
   services: string[]; // service IDs
@@ -216,6 +218,8 @@ export const createBarberSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   photoUrl: z.string().optional(),
+  phone: z.string().optional(),
+  active: z.boolean().optional(),
   weeklySchedule: z.string(), // JSON string
   services: z.array(z.string().uuid()),
 });
@@ -227,6 +231,8 @@ export const updateBarberSchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
   photoUrl: z.string().optional(),
+  phone: z.string().optional(),
+  active: z.boolean().optional(),
   weeklySchedule: z.string().optional(),
   services: z.array(z.string().uuid()).optional(),
 });
@@ -245,6 +251,12 @@ export const updateConfigSchema = z.object({
   whatsappPhoneNumberId: z.string().optional(),
   whatsappBusinessId: z.string().optional(),
   whatsappFromNumber: z.string().optional(),
+  smtpHost: z.string().optional(),
+  smtpPort: z.number().optional(),
+  smtpUser: z.string().optional(),
+  smtpPassword: z.string().optional(),
+  smtpFrom: z.string().optional(),
+  smtpTls: z.boolean().optional(),
 });
 
 export type UpdateConfigInput = z.infer<typeof updateConfigSchema>;
@@ -258,6 +270,7 @@ export interface AdminConfig extends Config {
   whatsappPhoneNumberId?: string;
   whatsappBusinessId?: string;
   whatsappFromNumber?: string;
+  smtpPassword?: string;
   vapidPrivateKey?: string;
 }
 
@@ -286,6 +299,7 @@ export const updateBarberProfileSchema = z.object({
   email: z.string().email().optional(),
   currentPassword: z.string().min(1).optional(),
   newPassword: z.string().min(8).optional(),
+  phone: z.string().optional(),
   weeklySchedule: z.string().optional(),
 }).refine(
   (data) => {

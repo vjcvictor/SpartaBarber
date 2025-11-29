@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { SiGooglecalendar } from 'react-icons/si';
-import { FaMicrosoft } from 'react-icons/fa';
+import { FaMicrosoft, FaWhatsapp } from 'react-icons/fa';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -221,7 +221,7 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
           </div>
         </Card>
 
-        {!isAuthenticated && (
+        {/* {!isAuthenticated && (
           <div className="mb-8">
             <Button
               className="w-full"
@@ -236,7 +236,7 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
               Crea una cuenta para agendar más rápido la próxima vez
             </p>
           </div>
-        )}
+        )} */}
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -284,6 +284,24 @@ export default function AppointmentConfirmation({ appointmentId, onBackToHome }:
               Agregar a Outlook Calendar
             </Button>
           </div>
+
+          {appointment.barber?.phone && (
+            <Button
+              className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white"
+              size="lg"
+              onClick={() => {
+                if (!appointment || !appointment.barber?.phone) return;
+                const phone = appointment.barber.phone.replace(/\D/g, '');
+                const message = `Hola ${appointment.barber.name}, soy ${appointment.client?.fullName}. Confirmo mi cita para ${appointment.service?.name} el ${formattedDate} a las ${formattedTime}.`;
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+              }}
+              data-testid="button-whatsapp-confirm"
+            >
+              <FaWhatsapp className="w-5 h-5 mr-2" />
+              Confirmar cita
+            </Button>
+          )}
+
           <Button
             size="lg"
             className="w-full"

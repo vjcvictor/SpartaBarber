@@ -162,7 +162,11 @@ export async function notifyAppointmentCreated(appointmentId: string): Promise<v
       where: { id: appointmentId },
       include: {
         service: true,
-        barber: true,
+        barber: {
+          include: {
+            user: true,
+          },
+        },
         client: true,
       },
     });
@@ -186,11 +190,60 @@ export async function notifyAppointmentCreated(appointmentId: string): Promise<v
       dateTime
     );
 
-    // Send WhatsApp
+    // Send WhatsApp to client
     await sendWhatsAppMessage(appointment.client.phoneE164, message, appointmentId);
+
+    // Send Email to client
+    const { sendEmail, getAppointmentConfirmationEmailHTML, getBarberNewAppointmentEmailHTML } = await import('./email');
+    const price = `$${appointment.service.priceCOP.toLocaleString('es-CO')}`;
+    const clientEmailHTML = getAppointmentConfirmationEmailHTML(
+      appointment.client.fullName,
+      appointment.service.name,
+      appointment.barber.name,
+      dateTime,
+      price
+    );
+    await sendEmail(
+      appointment.client.email,
+      '✅ Cita Confirmada - Barbería Sparta',
+      clientEmailHTML,
+      appointmentId
+    );
+
+    // Send Email to barber
+    if (appointment.barber.user?.email) {
+      const barberEmailHTML = getBarberNewAppointmentEmailHTML(
+        appointment.barber.name,
+        appointment.client.fullName,
+        appointment.service.name,
+        dateTime
+      );
+      await sendEmail(
+        appointment.barber.user.email,
+        '📅 Nueva Cita Agendada - Barbería Sparta',
+        barberEmailHTML,
+        appointmentId
+      );
+    }
+
+    // Send Push Notification to client
+    if (appointment.client.userId) {
+      const { sendPushToUser } = await import('./pushNotifications');
+      await sendPushToUser(appointment.client.userId, {
+        title: '✅ Cita Confirmada',
+        body: `Tu cita de ${appointment.service.name} con ${appointment.barber.name} el ${dateTime}`,
+        icon: '/logo.png',
+        tag: 'appointment-created',
+        data: {
+          url: '/client/appointments',
+          appointmentId: appointment.id,
+        },
+      });
+    }
 
     logger.info(`Notifications sent for appointment ${appointmentId}`);
   } catch (error) {
     logger.error('Error sending appointment notifications:', error);
   }
 }
+

@@ -33,7 +33,29 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { parsePhoneNumber } from 'libphonenumber-js';
+import {
+  GiScissors,
+  GiBeard,
+  GiRazor,
+  GiComb,
+  GiTowel,
+  GiMustache,
+  GiStarsStack,
+  GiMedal,
+  GiTrophy,
+  GiDiamondHard
+} from 'react-icons/gi';
+import { FaEye, FaSpa, FaStar, FaCrown, FaFire } from 'react-icons/fa';
+import { IconType } from 'react-icons';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { createBarberSchema, updateBarberSchema, type Service, type WeeklySchedule } from '@shared/schema';
@@ -46,6 +68,8 @@ interface BarberResponse {
   name: string;
   email: string;
   photoUrl: string | null;
+  phone: string | null;
+  active: boolean;
   weeklySchedule: WeeklySchedule[];
   exceptions: any;
   services: string[];
@@ -56,9 +80,31 @@ interface BarberFormData {
   email: string;
   password?: string;
   photoUrl?: string;
+  countryCode: string;
+  phone: string;
+  active: boolean;
   weeklySchedule: WeeklySchedule[];
   services: string[];
 }
+
+// Map string names to React Icon components
+const IconMap: Record<string, IconType> = {
+  'Scissors': GiScissors,
+  'Beard': GiBeard,
+  'Eye': FaEye,
+  'Spa': FaSpa,
+  'Razor': GiRazor,
+  'Star': FaStar,
+  'Towel': GiTowel,
+  'Mustache': GiMustache,
+  'Diamond': GiDiamondHard,
+  'Fire': FaFire,
+  'Medal': GiMedal,
+  'Trophy': GiTrophy,
+  'Stars': GiStarsStack,
+  'Comb': GiComb,
+  'Crown': FaCrown,
+};
 
 const DEFAULT_SCHEDULE: WeeklySchedule[] = [
   { dayOfWeek: 1, start: '09:00', end: '17:00', breaks: [] },
@@ -88,6 +134,9 @@ export default function Barbers() {
       email: '',
       password: '',
       photoUrl: '',
+      countryCode: '+57',
+      phone: '',
+      active: true,
       weeklySchedule: DEFAULT_SCHEDULE,
       services: [],
     },
@@ -148,26 +197,69 @@ export default function Barbers() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/barbers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/barbers'] });
       toast({
-        title: 'Barbero eliminado',
-        description: 'El barbero se ha eliminado correctamente',
+        title: 'Barbero desactivado',
+        description: 'El barbero se ha desactivado correctamente',
       });
     },
     onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Error al eliminar el barbero',
+        description: error.message || 'Error al desactivar el barbero',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('PUT', `/api/admin/barbers/${id}`, { active: true });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/barbers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/barbers'] });
+      toast({
+        title: 'Barbero reactivado',
+        description: 'El barbero se ha reactivado correctamente',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al reactivar el barbero',
         variant: 'destructive',
       });
     },
   });
 
   function handleEdit(barber: BarberResponse) {
+    let countryCode = '+57';
+    let phone = '';
+
+    if (barber.phone) {
+      try {
+        // Parse phone number using libphonenumber-js
+        const parsed = parsePhoneNumber(barber.phone);
+        if (parsed) {
+          countryCode = `+${parsed.countryCallingCode}`;
+          phone = parsed.nationalNumber;
+        } else {
+          phone = barber.phone;
+        }
+      } catch (e) {
+        console.error('Error parsing phone:', e);
+        phone = barber.phone;
+      }
+    }
+
     setEditingBarber(barber);
     form.reset({
       name: barber.name,
       email: barber.email,
       password: '',
       photoUrl: barber.photoUrl || '',
+      countryCode,
+      phone,
+      active: barber.active,
       weeklySchedule: barber.weeklySchedule,
       services: barber.services,
     });
@@ -183,6 +275,9 @@ export default function Barbers() {
         email: '',
         password: '',
         photoUrl: '',
+        countryCode: '+57',
+        phone: '',
+        active: true,
         weeklySchedule: DEFAULT_SCHEDULE,
         services: [],
       });
@@ -192,8 +287,12 @@ export default function Barbers() {
   }
 
   function onSubmit(data: BarberFormData) {
+    // Clean phone number (remove non-digits)
+    const cleanPhone = data.phone.replace(/\D/g, '');
+
     const payload = {
       ...data,
+      phone: cleanPhone ? `${data.countryCode}${cleanPhone}` : undefined,
       weeklySchedule: JSON.stringify(data.weeklySchedule),
     };
 
@@ -202,6 +301,8 @@ export default function Barbers() {
         name: payload.name,
         email: payload.email,
         photoUrl: payload.photoUrl,
+        phone: payload.phone,
+        active: payload.active,
         weeklySchedule: payload.weeklySchedule,
         services: payload.services,
       };
@@ -223,6 +324,8 @@ export default function Barbers() {
         email: payload.email,
         password: payload.password,
         photoUrl: payload.photoUrl,
+        phone: payload.phone,
+        active: payload.active,
         weeklySchedule: payload.weeklySchedule,
         services: payload.services,
       };
@@ -301,6 +404,101 @@ export default function Barbers() {
                       </FormItem>
                     )}
                   />
+
+                  <div>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Teléfono
+                    </label>
+                    <div className="flex gap-2 mt-2">
+                      <FormField
+                        control={form.control}
+                        name="countryCode"
+                        render={({ field }) => (
+                          <FormItem className="w-32">
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="+57">
+                                  <div className="flex items-center">
+                                    <img src="https://flagcdn.com/w20/co.png" alt="Colombia" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                    +57
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="+58">
+                                  <div className="flex items-center">
+                                    <img src="https://flagcdn.com/w20/ve.png" alt="Venezuela" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                    +58
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="+1">
+                                  <div className="flex items-center">
+                                    <img src="https://flagcdn.com/w20/us.png" alt="USA" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                    +1
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="+52">
+                                  <div className="flex items-center">
+                                    <img src="https://flagcdn.com/w20/mx.png" alt="Mexico" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                    +52
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="+34">
+                                  <div className="flex items-center">
+                                    <img src="https://flagcdn.com/w20/es.png" alt="España" className="mr-2 h-4 w-6 object-cover rounded-sm" />
+                                    +34
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormControl>
+                              <Input
+                                placeholder="3001234567"
+                                autoComplete="tel"
+                                {...field}
+                                data-testid="input-barber-phone"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="active"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Barbero Activo
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Si se desactiva, no aparecerá disponible para nuevas citas.
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="photoUrl"
@@ -357,8 +555,16 @@ export default function Barbers() {
                                     />
                                   </FormControl>
                                   <div className="space-y-1 leading-none">
-                                    <FormLabel className="font-normal">
-                                      {service.icon} {service.name}
+                                    <FormLabel className="font-normal flex items-center gap-2">
+                                      {(() => {
+                                        const IconComponent = IconMap[service.icon];
+                                        return IconComponent ? (
+                                          <IconComponent className="w-5 h-5 text-amber-500" />
+                                        ) : (
+                                          <span>{service.icon}</span>
+                                        );
+                                      })()}
+                                      {service.name}
                                     </FormLabel>
                                   </div>
                                 </FormItem>
@@ -403,68 +609,98 @@ export default function Barbers() {
           ) : (
             <div className="w-full overflow-x-auto">
               <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[150px]">Nombre</TableHead>
-                  <TableHead className="min-w-[180px]">Email</TableHead>
-                  <TableHead className="min-w-[200px]">Servicios</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {barbers?.length === 0 ? (
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No hay barberos registrados
-                    </TableCell>
+                    <TableHead className="min-w-[150px]">Nombre</TableHead>
+                    <TableHead className="min-w-[180px]">Email</TableHead>
+                    <TableHead className="min-w-[120px]">Teléfono</TableHead>
+                    <TableHead className="min-w-[100px]">Estado</TableHead>
+                    <TableHead className="min-w-[200px]">Servicios</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  barbers?.map((barber) => (
-                    <TableRow key={barber.id} data-testid={`row-barber-${barber.id}`}>
-                      <TableCell className="font-medium" data-testid="text-barber-name">
-                        {barber.name}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap" data-testid="text-barber-email">
-                        {barber.email}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {barber.services.map((serviceId) => {
-                            const service = services?.find(s => s.id === serviceId);
-                            return service ? (
-                              <Badge key={serviceId} variant="secondary" data-testid="badge-barber-service">
-                                {service.icon} {service.name}
-                              </Badge>
-                            ) : null;
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(barber)}
-                            data-testid="button-edit-barber"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(barber.id)}
-                            disabled={deleteMutation.isPending}
-                            data-testid="button-delete-barber"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {barbers?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No hay barberos registrados
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    barbers?.map((barber) => (
+                      <TableRow key={barber.id} data-testid={`row-barber-${barber.id}`}>
+                        <TableCell className="font-medium" data-testid="text-barber-name">
+                          {barber.name}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap" data-testid="text-barber-email">
+                          {barber.email}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {barber.phone || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={barber.active ? 'default' : 'destructive'}>
+                            {barber.active ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {barber.services.map((serviceId) => {
+                              const service = services?.find(s => s.id === serviceId);
+                              if (!service) return null;
+                              const IconComponent = IconMap[service.icon];
+                              return (
+                                <Badge key={serviceId} variant="secondary" data-testid="badge-barber-service" className="flex items-center gap-1">
+                                  {IconComponent ? (
+                                    <IconComponent className="w-4 h-4 text-amber-500" />
+                                  ) : (
+                                    <span>{service.icon}</span>
+                                  )}
+                                  {service.name}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(barber)}
+                              data-testid="button-edit-barber"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {barber.active ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteMutation.mutate(barber.id)}
+                                disabled={deleteMutation.isPending}
+                                title="Desactivar barbero"
+                                data-testid="button-delete-barber"
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => reactivateMutation.mutate(barber.id)}
+                                disabled={reactivateMutation.isPending}
+                                title="Reactivar barbero"
+                              >
+                                <RotateCcw className="w-4 h-4 text-green-600" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           )}
         </Card>

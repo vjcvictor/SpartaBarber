@@ -1,8 +1,10 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type User } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
 // you might need
+
+type InsertUser = Omit<User, 'id'>;
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -23,7 +25,7 @@ export class MemStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+      (user) => user.email === username,
     );
   }
 

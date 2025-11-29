@@ -88,6 +88,9 @@ export default function Settings() {
             <TabsTrigger value="general" data-testid="tab-general">
               General
             </TabsTrigger>
+            <TabsTrigger value="email" data-testid="tab-email">
+              Email
+            </TabsTrigger>
             <TabsTrigger value="whatsapp" data-testid="tab-whatsapp">
               WhatsApp
             </TabsTrigger>
@@ -148,6 +151,139 @@ export default function Settings() {
                   </Button>
                 </form>
               </Form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="email">
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Configuración SMTP</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Configura el servidor SMTP para enviar notificaciones por email.
+                  </p>
+                </div>
+
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="smtpHost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Host SMTP</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="smtp.gmail.com" data-testid="input-smtp-host" />
+                          </FormControl>
+                          <FormDescription>
+                            Servidor SMTP (ej: smtp.gmail.com, smtp-mail.outlook.com)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="smtpPort"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Puerto SMTP</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              placeholder="587"
+                              onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                              data-testid="input-smtp-port"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Puerto (587 para TLS, 465 para SSL)
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="smtpUser"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Usuario SMTP</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="tu-email@gmail.com" data-testid="input-smtp-user" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="smtpPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña SMTP</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="password" placeholder="••••••••" data-testid="input-smtp-password" />
+                          </FormControl>
+                          <FormDescription>
+                            Para Gmail, usa una contraseña de aplicación
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="smtpFrom"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Remitente</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="noreply@barberiasparta.com" data-testid="input-smtp-from" />
+                          </FormControl>
+                          <FormDescription>
+                            Dirección de email que aparecerá como remitente
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="smtpTls"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="mt-1"
+                              data-testid="checkbox-smtp-tls"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Usar TLS
+                            </FormLabel>
+                            <FormDescription>
+                              Recomendado para la mayoría de servidores SMTP
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={updateMutation.isPending}
+                      data-testid="button-save-email"
+                    >
+                      {updateMutation.isPending ? 'Guardando...' : 'Guardar Configuración Email'}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
             </Card>
           </TabsContent>
 

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import type { Service, Barber } from '@shared/schema';
 
+// Re-export types for convenience
+export type { Service, Barber };
+
 export interface ClientDraftData {
   fullName: string;
   countryCode: string;

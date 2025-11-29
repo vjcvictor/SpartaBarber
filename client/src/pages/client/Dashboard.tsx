@@ -14,9 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Calendar, Clock, History, Plus } from 'lucide-react';
+import { Calendar, Clock, History, Plus, Bell, BellOff } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { formatTime12Hour } from '@/lib/timeFormat';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import type { Appointment } from '@shared/schema';
 
 const TIMEZONE = 'America/Bogota';
@@ -29,6 +30,7 @@ interface ClientStats {
 
 export default function ClientDashboard() {
   const [, setLocation] = useLocation();
+  const { isSupported, isSubscribed, isLoading: pushLoading, error: pushError, subscribe, unsubscribe } = usePushNotifications();
 
   const { data: stats, isLoading: statsLoading } = useQuery<ClientStats>({
     queryKey: ['/api/client/stats'],
@@ -129,6 +131,50 @@ export default function ClientDashboard() {
                   {upcomingAppointments.length > 0
                     ? formatTime12Hour(format(toZonedTime(new Date(upcomingAppointments[0].startDateTime), TIMEZONE), "HH:mm"))
                     : '-'}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Notificaciones Push</CardTitle>
+              {isSubscribed ? (
+                <Bell className="h-4 w-4 text-green-600" />
+              ) : (
+                <BellOff className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CardHeader>
+            <CardContent>
+              {!isSupported ? (
+                <p className="text-xs text-muted-foreground">No soportado en este navegador</p>
+              ) : pushLoading ? (
+                <Skeleton className="h-8 w-full" />
+              ) : isSubscribed ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-green-600 font-medium">✓ Activadas</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={unsubscribe}
+                    className="w-full"
+                  >
+                    Desactivar
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Recibe alertas de tus citas</p>
+                  <Button
+                    size="sm"
+                    onClick={subscribe}
+                    className="w-full"
+                  >
+                    Activar
+                  </Button>
+                  {pushError && (
+                    <p className="text-xs text-destructive">{pushError}</p>
+                  )}
                 </div>
               )}
             </CardContent>

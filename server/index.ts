@@ -1,11 +1,31 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { setupVite, serveStatic, log } from "./vite";
 import routes from "./routes";
 import { csrfProtection } from "./middleware/csrf";
 
 const app = express();
 app.set('trust proxy', true); // Fix for Replit's X-Forwarded-For headers
+
+// Security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for Vite in dev
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Required for some third-party integrations
+}));
+
 app.use(cookieParser());
 
 declare module 'http' {
@@ -53,7 +73,7 @@ app.use((req, res, next) => {
 (async () => {
   // CSRF protection for all routes
   app.use(csrfProtection);
-  
+
   // Register API routes
   app.use(routes);
 
@@ -86,5 +106,12 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
   }, () => {
     log(`serving on port ${port}`);
+
+    // Start appointment reminder scheduler
+    import('./services/scheduler').then(({ startReminderScheduler }) => {
+      startReminderScheduler();
+    }).catch(err => {
+      console.error('Failed to start reminder scheduler:', err);
+    });
   });
 })();

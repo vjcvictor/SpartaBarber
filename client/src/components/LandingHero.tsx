@@ -56,7 +56,7 @@ export default function LandingHero({
                 >
                   Iniciar Sesión
                 </Button>
-                {onRegisterClick && (
+                {/* {onRegisterClick && (
                   <Button
                     size="lg"
                     className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-zinc-950 hover:bg-zinc-900 text-[#e6dfcf] border-none"
@@ -66,7 +66,7 @@ export default function LandingHero({
                     <UserPlus className="w-5 h-5 mr-2" />
                     Registrarse
                   </Button>
-                )}
+                )} */}
               </>
             ) : (
               <Button
